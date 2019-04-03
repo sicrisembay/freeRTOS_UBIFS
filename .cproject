@@ -56,6 +56,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/src/config}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/third_party/middleware/RTCESL/4.5/CM7F_RTCESL_4.5_MCUX/MLIB/Include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/third_party/middleware/RTCESL/4.5/CM7F_RTCESL_4.5_MCUX/GFLIB/Include}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/utility}&quot;"/>
 								</option>
 								<option id="gnu.cpp.compiler.option.include.files.445161592" name="Include files (-include)" superClass="gnu.cpp.compiler.option.include.files" useByScannerDiscovery="false"/>
 								<option id="com.crt.advproject.cpp.exe.debug.option.optimization.level.997039147" name="Optimization Level" superClass="com.crt.advproject.cpp.exe.debug.option.optimization.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.optimization.level.none" valueType="enumerated"/>
@@ -127,6 +128,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/third_party/middleware/RTCESL/4.5/CM7F_RTCESL_4.5_MCUX/GFLIB/Include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/third_party/u-boot/include}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/third_party/u-boot/arch/arm/include}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/utility}&quot;"/>
 								</option>
 								<option id="gnu.c.compiler.option.include.files.164524747" name="Include files (-include)" superClass="gnu.c.compiler.option.include.files" useByScannerDiscovery="false"/>
 								<option id="com.crt.advproject.gcc.exe.debug.option.optimization.level.1464914676" name="Optimization Level" superClass="com.crt.advproject.gcc.exe.debug.option.optimization.level" useByScannerDiscovery="false" value="gnu.c.optimization.level.none" valueType="enumerated"/>
@@ -193,15 +195,8 @@
 								<option id="gnu.cpp.link.option.nodeflibs.417992401" name="Do not use default libraries (-nodefaultlibs)" superClass="gnu.cpp.link.option.nodeflibs" useByScannerDiscovery="false"/>
 								<option id="gnu.cpp.link.option.nostdlibs.1519415514" name="No startup or default libs (-nostdlib)" superClass="gnu.cpp.link.option.nostdlibs" useByScannerDiscovery="false" value="true" valueType="boolean"/>
 								<option id="gnu.cpp.link.option.strip.1220835490" name="Omit all symbol information (-s)" superClass="gnu.cpp.link.option.strip" useByScannerDiscovery="false"/>
-								<option id="gnu.cpp.link.option.libs.1122196268" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" useByScannerDiscovery="false" valueType="libs">
-									<listOptionValue builtIn="false" value=":mlib.a"/>
-									<listOptionValue builtIn="false" value=":gflib.a"/>
-								</option>
-								<option id="gnu.cpp.link.option.paths.1187703941" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" useByScannerDiscovery="false" valueType="libPaths">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/project_tres/third_party/middleware/RTCESL/4.5/CM7F_RTCESL_4.5_MCUX/MLIB}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/third_party/emwin/emWin_library/MCUXpresso}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/project_tres/third_party/middleware/RTCESL/4.5/CM7F_RTCESL_4.5_MCUX/GFLIB}&quot;"/>
-								</option>
+								<option id="gnu.cpp.link.option.libs.1122196268" name="Libraries (-l)" superClass="gnu.cpp.link.option.libs" useByScannerDiscovery="false" valueType="libs"/>
+								<option id="gnu.cpp.link.option.paths.1187703941" name="Library search path (-L)" superClass="gnu.cpp.link.option.paths" useByScannerDiscovery="false" valueType="libPaths"/>
 								<option id="gnu.cpp.link.option.flags.1689303734" name="Linker flags" superClass="gnu.cpp.link.option.flags" useByScannerDiscovery="false"/>
 								<option id="gnu.cpp.link.option.other.39626939" name="Other options (-Xlinker [option])" superClass="gnu.cpp.link.option.other" useByScannerDiscovery="false" valueType="stringList">
 									<listOptionValue builtIn="false" value="-Map=&quot;${BuildArtifactFileBaseName}.map&quot;"/>
@@ -288,12 +283,12 @@
 								<option id="com.crt.advproject.link.config.571134810" name="Obsolete (Config)" superClass="com.crt.advproject.link.config"/>
 								<option id="com.crt.advproject.link.store.971720253" name="Obsolete (Store)" superClass="com.crt.advproject.link.store"/>
 							</tool>
+							<tool id="com.crt.advproject.tool.debug.debug.1814098219" name="MCU Debugger" superClass="com.crt.advproject.tool.debug.debug"/>
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
 						<entry excluding="bsp/BSP_uart.c|bsp/BSP_timer.c|bsp/BSP_tftSt7789v.c|bsp/BSP_pwm.c|bsp/BSP_lpspiManager.c|bsp/BSP_heater.c|bsp/BSP_encoder.c|bsp/BSP_digOut.c|bsp/BSP_ads122c04.c|bsp/BSP_i2cManager.c|bsp/BSP_digIn.c|bsp/BSP_analog.c|fs/fs_lfs.c|template.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="src"/>
 						<entry excluding="rtos/freertos_aws/v1.4.1/lib/wifi|rtos/freertos_aws/v1.4.1/lib/secure_sockets|rtos/freertos_aws/v1.4.1/lib/mqtt|rtos/freertos_aws/v1.4.1/lib/bufferpool|u-boot/lib/zlib/zutil.c|u-boot/lib/zlib/trees.c|u-boot/lib/zlib/inftrees.c|u-boot/lib/zlib/inflate.c|u-boot/lib/zlib/inffast.c|u-boot/lib/zlib/deflate.c|u-boot/lib/zlib/adler32.c|u-boot/drivers/mtd/tests/mtd_torturetest.c|u-boot/drivers/mtd/tests/mtd_subpagetest.c|u-boot/drivers/mtd/tests/mtd_stresstest.c|u-boot/drivers/mtd/tests/mtd_speedtest.c|u-boot/drivers/mtd/tests/mtd_oobtest.c|u-boot/drivers/mtd/tests/mtd_nandecctest.c|u-boot/drivers/mtd/ubi/fastmap.c|u-boot/drivers/mtd/ubi/fastmap-wl.c|u-boot/cmd/ubifs.c|u-boot/cmd/nand.c|u-boot/drivers/mtd/nand/nand_bch.c|fs|u-boot/drivers/mtd/nand/nand_util.c|u-boot/drivers/mtd/nand/nand_timings.c|u-boot/drivers/mtd/mtd-uclass.c|u-boot/drivers/mtd/mtdconcat.c|u-boot/drivers/mtd/mtd_uboot.c|emwin/Tools|rtos/freertos_aws/v1.4.1/lib/wifi/portable/nxp|rtos/freertos_aws/v1.4.1/lib/wifi/portable/espressif|rtos/freertos_aws/v1.4.1/lib/secure_sockets/portable/nxp|rtos/freertos_aws/v1.4.1/lib/secure_sockets/portable/nxp/rotimaticModule/aws_secure_sockets.c|rtos/freertos_aws/v1.4.1/lib/secure_sockets/portable/nxp/lpc54018iotmodule|rtos/freertos_aws/v1.4.1/lib/secure_sockets/portable/vendor|rtos/freertos_aws/v1.4.1/lib/secure_sockets/portable/ti|rtos/freertos_aws/v1.4.1/lib/secure_sockets/portable/st|rtos/freertos_aws/v1.4.1/lib/secure_sockets/portable/freertos_plus_tcp|rtos/freertos_aws/v1.4.1/lib/FreeRTOS/portable/Common|rtos/freertos_aws/v1.4.1/lib/FreeRTOS/portable/MemMang/heap_5.c|rtos/freertos_aws/v1.4.1/lib/FreeRTOS/portable/MemMang/heap_3.c|rtos/freertos_aws/v1.4.1/lib/FreeRTOS/portable/MemMang/heap_2.c|rtos/freertos_aws/v1.4.1/lib/FreeRTOS/portable/MemMang/heap_1.c|rtos/freertos_aws/v1.4.1/lib/utils|rtos/freertos_aws/v1.4.1/lib/tls|rtos/freertos_aws/v1.4.1/lib/third_party|rtos/freertos_aws/v1.4.1/lib/shadow|rtos/freertos_aws/v1.4.1/lib/pkcs11|rtos/freertos_aws/v1.4.1/lib/ota|rtos/freertos_aws/v1.4.1/lib/greengrass|rtos/freertos_aws/v1.4.1/lib/FreeRTOS-Plus-TCP|rtos/freertos_aws/v1.4.1/lib/FreeRTOS-Plus-POSIX|rtos/freertos_aws/v1.4.1/lib/defender|rtos/freertos_aws/v1.4.1/lib/crypto|rtos/freertos_aws/v1.4.1/lib/cbor|rtos/freertos_aws/v1.4.1/tests|rtos/freertos_aws/v1.4.1/tools|rtos/freertos_aws/v1.4.1/demos|framework/qpc/6.3.3/ports/arm-cm|framework/qpc/6.3.3/src/qxk|framework/qpc/6.3.3/src/qv|framework/qpc/6.3.3/src/qk|SDK_2.4.1_EVKB-IMXRT1050/devices/MIMXRT1052/cmsis_drivers|SDK_2.4.1_EVKB-IMXRT1050/devices/MIMXRT1052/drivers/fsl_lpuart_freertos.c|SDK_2.4.1_EVKB-IMXRT1050/devices/MIMXRT1052/mcuxpresso/startup_mimxrt1052.c|SDK_2.4.1_EVKB-IMXRT1050/CMSIS|rtos/freeRTOS/10.0.1/Source/portable/GCC/ARM_CM4F|rtos/freeRTOS/10.0.1/Source/portable/MemMang/heap_5.c|rtos/freeRTOS/10.0.1/Source/portable/MemMang/heap_3.c|rtos/freeRTOS/10.0.1/Source/portable/MemMang/heap_2.c|rtos/freeRTOS/10.0.1/Source/portable/MemMang/heap_1.c" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="third_party"/>
-						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="utility"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
