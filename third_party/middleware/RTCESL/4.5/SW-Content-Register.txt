@@ -1,0 +1,8 @@
+Release Name: RTCESL 4.5
+
+RTCESL 4.5
+                          Description: NXP Real Time Control Embedded Software Library. 
+                          Author: NXP
+                          License: Proprietary. See in license_CM.txt file
+                          Format: object code & header files
+                          Header files location: each directory 
