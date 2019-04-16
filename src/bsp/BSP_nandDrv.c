@@ -235,15 +235,14 @@ static void _NAND_InitPins(void)
 
     IOMUXC_SetPinConfig(
         IOMUXC_GPIO_EMC_40_SEMC_RDY,            /* GPIO_EMC_40 PAD functional properties : */
-        0xF8F9U);                               /* Slew Rate Field: Fast Slew Rate
+        0x01F0F9U);                             /* Slew Rate Field: Fast Slew Rate
                                                    Drive Strength Field: R0/7
                                                    Speed Field: max(200MHz)
-                                                   Open Drain Enable Field: Open Drain Enabled
+                                                   Open Drain Enable Field: Open Drain Disabled
                                                    Pull / Keep Enable Field: Pull/Keeper Enabled
                                                    Pull / Keep Select Field: Pull
                                                    Pull Up / Down Config. Field: 22K Ohm Pull Up
-                                                   Hyst. Enable Field: Hysteresis Disabled */
-
+                                                   Hyst. Enable Field: Hysteresis Enabled */
     IOMUXC_SetPinConfig(
 		IOMUXC_GPIO_EMC_41_SEMC_CSX00,         		/* GPIO_EMC_41 PAD functional properties : */
 		0x0110F9u);                             	/* Slew Rate Field: Fast Slew Rate
