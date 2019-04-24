@@ -486,7 +486,7 @@ static int part_del(struct mtd_device *dev, struct part_info *part)
 	}
 
 	list_del(&part->link);
-	free(part);
+	kfree(part);
 	dev->num_parts--;
 
 	if (current_save_needed > 0)
@@ -512,7 +512,7 @@ static void part_delall(struct list_head *head)
 		part_tmp = list_entry(entry, struct part_info, link);
 
 		list_del(entry);
-		free(part_tmp);
+		kfree(part_tmp);
 	}
 }
 
@@ -754,7 +754,7 @@ static int device_delall(struct list_head *head)
 		dev_tmp = list_entry(entry, struct mtd_device, link);
 		list_del(entry);
 		part_delall(&dev_tmp->parts);
-		free(dev_tmp);
+		kfree(dev_tmp);
 	}
 	INIT_LIST_HEAD(&devices);
 
@@ -772,7 +772,7 @@ static int device_del(struct mtd_device *dev)
 {
 	part_delall(&dev->parts);
 	list_del(&dev->link);
-	free(dev);
+	kfree(dev);
 
 	if (dev == current_mtd_dev) {
 		/* we just deleted current device */
@@ -1651,7 +1651,7 @@ static int parse_mtdids(const char *const ids)
 		id_tmp = list_entry(entry, struct mtdids, link);
 		debug("mtdids del: %d %d\n", id_tmp->type, id_tmp->num);
 		list_del(entry);
-		free(id_tmp);
+		kfree(id_tmp);
 	}
 	last_ids[0] = '\0';
 	INIT_LIST_HEAD(&mtdids);
@@ -1731,7 +1731,7 @@ static int parse_mtdids(const char *const ids)
 		list_for_each_safe(entry, n, &mtdids) {
 			id_tmp = list_entry(entry, struct mtdids, link);
 			list_del(entry);
-			free(id_tmp);
+			kfree(id_tmp);
 		}
 		return 1;
 	}

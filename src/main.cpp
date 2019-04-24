@@ -133,6 +133,8 @@ void SystemInitHook (void) {
     }
 }
 
+#include "stdio.h"
+
 //*****************************************************************************
 //!
 //! \brief Application entry function.
@@ -148,6 +150,7 @@ int main(void)
     BOARD_BootClockRUN();
 
     /* Run the application.  This also starts the freeRTOS kernel */
+    printf("starting app\n");
     UBIFS_ZPL_Init();
     vTaskStartScheduler();
     return 0;

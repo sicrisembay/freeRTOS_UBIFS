@@ -344,7 +344,9 @@ int ubi_compare_lebs(struct ubi_device *ubi, const struct ubi_ainf_peb *aeb,
 		 * but only if no unclean reboots happened.
 		 */
 		ubi_err(ubi, "unsupported on-flash UBI format");
+#ifndef __TEST_APP__
 		return -EINVAL;
+#endif
 	}
 
 	/* Obviously the LEB with lower sequence counter is older */
@@ -1462,13 +1464,13 @@ int ubi_attach(struct ubi_device *ubi, int force_scan)
 	if (err)
 		goto out_ai;
 
-	err = ubi_wl_init(ubi, ai);
-	if (err)
-		goto out_vtbl;
-
 	err = ubi_eba_init(ubi, ai);
 	if (err)
 		goto out_wl;
+
+	err = ubi_wl_init(ubi, ai);
+	if (err)
+		goto out_vtbl;
 
 #ifdef CONFIG_MTD_UBI_FASTMAP
 	if (ubi->fm && ubi_dbg_chk_fastmap(ubi)) {

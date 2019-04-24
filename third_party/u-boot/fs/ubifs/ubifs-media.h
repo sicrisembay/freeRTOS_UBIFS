@@ -523,7 +523,7 @@ struct ubifs_dent_node {
 	__u8 padding1;
 	__u8 type;
 	__le16 nlen;
-	__u8 padding2[4]; /* Watch 'zero_dent_node_unused()' if changing! */
+	__le32 cookie;
 #ifndef __UBOOT__
 	__u8 name[];
 #else
@@ -548,7 +548,7 @@ struct ubifs_data_node {
 	__u8 key[UBIFS_MAX_KEY_LEN];
 	__le32 size;
 	__le16 compr_type;
-	__u8 padding[2]; /* Watch 'zero_data_node_unused()' if changing! */
+	__le16 compr_size;
 	__u8 data[];
 } __packed;
 

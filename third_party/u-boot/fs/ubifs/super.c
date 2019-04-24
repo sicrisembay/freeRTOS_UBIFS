@@ -90,7 +90,7 @@ int ubifs_iput(struct inode *inode)
 {
 	list_del_init(&inode->i_sb_list);
 
-	free(inode);
+	kfree(inode);
 	return 0;
 }
 
@@ -1317,7 +1317,6 @@ again:
 	}
 }
 
-#ifndef __UBOOT__
 /**
  * check_free_space - check if there is enough free space to mount.
  * @c: UBIFS file-system description object
@@ -1336,7 +1335,6 @@ static int check_free_space(struct ubifs_info *c)
 	}
 	return 0;
 }
-#endif
 
 /**
  * mount_ubifs - mount UBIFS file-system.
@@ -1354,12 +1352,6 @@ static int mount_ubifs(struct ubifs_info *c)
 	c->ro_mount = !!(c->vfs_sb->s_flags & MS_RDONLY);
 	/* Suppress error messages while probing if MS_SILENT is set */
 	c->probing = !!(c->vfs_sb->s_flags & MS_SILENT);
-#ifdef __UBOOT__
-	if (!c->ro_mount) {
-		printf("UBIFS: only ro mode in U-Boot allowed.\n");
-		return -EACCES;
-	}
-#endif
 
 	err = init_constants_early(c);
 	if (err)
@@ -1404,25 +1396,21 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (!c->sbuf)
 		goto out_free;
 
-#ifndef __UBOOT__
 	if (!c->ro_mount) {
 		c->ileb_buf = vmalloc(c->leb_size);
 		if (!c->ileb_buf)
 			goto out_free;
 	}
-#endif
 
 	if (c->bulk_read == 1)
 		bu_init(c);
 
-#ifndef __UBOOT__
 	if (!c->ro_mount) {
 		c->write_reserve_buf = kmalloc(COMPRESSED_DATA_NODE_BUF_SZ,
 					       GFP_KERNEL);
 		if (!c->write_reserve_buf)
 			goto out_free;
 	}
-#endif
 
 	c->mounting = 1;
 
@@ -1460,7 +1448,6 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_cbuf;
 
 	sprintf(c->bgt_name, BGT_NAME_PATTERN, c->vi.ubi_num, c->vi.vol_id);
-#ifndef __UBOOT__
 	if (!c->ro_mount) {
 		/* Create background thread */
 		c->bgt = kthread_create(ubifs_bg_thread, c, "%s", c->bgt_name);
@@ -1473,7 +1460,6 @@ static int mount_ubifs(struct ubifs_info *c)
 		}
 		wake_up_process(c->bgt);
 	}
-#endif
 
 	err = ubifs_read_master(c);
 	if (err)
@@ -1486,19 +1472,16 @@ static int mount_ubifs(struct ubifs_info *c)
 		c->need_recovery = 1;
 	}
 
-#ifndef __UBOOT__
 	if (c->need_recovery && !c->ro_mount) {
 		err = ubifs_recover_inl_heads(c, c->sbuf);
 		if (err)
 			goto out_master;
 	}
-#endif
 
 	err = ubifs_lpt_init(c, 1, !c->ro_mount);
 	if (err)
 		goto out_master;
 
-#ifndef __UBOOT__
 	if (!c->ro_mount && c->space_fixup) {
 		err = ubifs_fixup_free_space(c);
 		if (err)
@@ -1515,7 +1498,6 @@ static int mount_ubifs(struct ubifs_info *c)
 		if (err)
 			goto out_lpt;
 	}
-#endif
 
 	err = dbg_check_idx_size(c, c->bi.old_idx_sz);
 	if (err)
@@ -1533,7 +1515,6 @@ static int mount_ubifs(struct ubifs_info *c)
 		goto out_orphans;
 
 	if (!c->ro_mount) {
-#ifndef __UBOOT__
 		int lnum;
 
 		err = check_free_space(c);
@@ -1574,7 +1555,6 @@ static int mount_ubifs(struct ubifs_info *c)
 		err = dbg_check_lprops(c);
 		if (err)
 			goto out_orphans;
-#endif
 	} else if (c->need_recovery) {
 		err = ubifs_recover_size(c);
 		if (err)
@@ -1704,9 +1684,7 @@ out_master:
 	kfree(c->rcvrd_mst_node);
 	if (c->bgt)
 		kthread_stop(c->bgt);
-#ifndef __UBOOT__
 out_wbufs:
-#endif
 	free_wbufs(c);
 out_cbuf:
 	kfree(c->cbuf);
@@ -1765,8 +1743,8 @@ void ubifs_umount(struct ubifs_info *c)
 #ifdef __UBOOT__
 	/* Finally free U-Boot's global copy of superblock */
 	if (ubifs_sb != NULL) {
-		free(ubifs_sb->s_fs_info);
-		free(ubifs_sb);
+		kfree(ubifs_sb->s_fs_info);
+		kfree(ubifs_sb);
 	}
 #endif
 }
@@ -2254,13 +2232,8 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	int err;
 
 	c->vfs_sb = sb;
-#ifndef __UBOOT__
 	/* Re-open the UBI device in read-write mode */
 	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READWRITE);
-#else
-	/* U-Boot read only mode */
-	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READONLY);
-#endif
 
 	if (IS_ERR(c->ubi)) {
 		err = PTR_ERR(c->ubi);
@@ -2618,7 +2591,6 @@ int ubifs_init(void)
 		return -EINVAL;
 	}
 
-#ifndef __UBOOT__
 	ubifs_inode_slab = kmem_cache_create("ubifs_inode_slab",
 				sizeof(struct ubifs_inode), 0,
 				SLAB_MEM_SPREAD | SLAB_RECLAIM_ACCOUNT,
@@ -2626,6 +2598,7 @@ int ubifs_init(void)
 	if (!ubifs_inode_slab)
 		return -ENOMEM;
 
+#ifndef __UBOOT__
 	err = register_shrinker(&ubifs_shrinker_info);
 	if (err)
 		goto out_slab;
@@ -2705,7 +2678,7 @@ int uboot_ubifs_mount(char *vol_name)
 	/*
 	 * Mount in read-only mode
 	 */
-	flags = MS_RDONLY;
+	flags = MS_SYNCHRONOUS;
 	ret = ubifs_mount(&ubifs_fs_type, flags, vol_name, NULL);
 	if (IS_ERR(ret)) {
 		printf("Error reading superblock on volume '%s' " \

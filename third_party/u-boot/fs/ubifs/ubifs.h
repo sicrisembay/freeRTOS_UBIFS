@@ -114,7 +114,56 @@ struct qstr {
 #endif
 };
 
+#define fname_name(nm)	((nm)->name)
+#define fname_len(nm)	((nm)->len)
+
+struct fscrypt_str {
+	unsigned char *name;
+	u32 len;
+};
+
+struct fscrypt_name {
+	const struct qstr *usr_fname;
+	struct fscrypt_str disk_name;
+};
+
+static inline int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
+			      int lookup, struct fscrypt_name *fname)
+{
+	memset(fname, 0, sizeof(struct fscrypt_name));
+	fname->usr_fname = iname;
+
+	fname->disk_name.name = (unsigned char *)iname->name;
+	fname->disk_name.len = iname->len;
+	return 0;
+}
+
+#define ubifs_crypt_is_encrypted(x)	(0)
+#define UBIFS_CIPHER_BLOCK_SIZE 0
+
+static inline int ubifs_encrypt(const struct inode *inode,
+				struct ubifs_data_node *dn,
+				unsigned int in_len, unsigned int *out_len,
+				int block)
+{
+	//ubifs_assert(0);
+	return -EOPNOTSUPP;
+}
+static inline int ubifs_decrypt(const struct inode *inode,
+				struct ubifs_data_node *dn,
+				unsigned int *out_len, int block)
+{
+	//ubifs_assert(0);
+	return -EOPNOTSUPP;
+}
+
 /* include/linux/fs.h */
+
+#define IS_DIRSYNC(inode)	(1)
+#define IS_SYNC(inode)		(1)
+
+#define S_ISDIR(m)       (((m) & S_IFMT) == S_IFDIR)
+#define S_ISREG(m)       (((m) & S_IFMT) == S_IFREG)
 
 /* Possible states of 'frozen' field */
 enum {
@@ -1876,6 +1925,7 @@ struct ubifs_info {
 
 	unsigned int big_lpt:1;
 	unsigned int space_fixup:1;
+	unsigned int double_hash:1;
 	unsigned int no_chk_data_crc:1;
 	unsigned int bulk_read:1;
 	unsigned int default_compr:2;
@@ -2067,9 +2117,7 @@ struct ubifs_info {
 	struct rb_root size_tree;
 	struct ubifs_mount_opts mount_opts;
 
-#ifndef __UBOOT__
 	struct ubifs_debug_info *dbg;
-#endif
 };
 
 extern struct list_head ubifs_infos;
@@ -2152,9 +2200,12 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode);
 int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode);
 int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
-		     const struct dentry *old_dentry,
+		     const struct inode *old_inode,
+		     const struct qstr *old_nm,
 		     const struct inode *new_dir,
-		     const struct dentry *new_dentry, int sync);
+		     const struct inode *new_inode,
+		     const struct qstr *new_nm,
+		     const struct inode *whiteout, int sync);
 int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 		       loff_t old_size, loff_t new_size);
 int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
@@ -2369,8 +2420,11 @@ ssize_t ubifs_getxattr(struct dentry *dentry, const char *name, void *buf,
 		       size_t size);
 ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 int ubifs_removexattr(struct dentry *dentry, const char *name);
-int ubifs_init_security(struct inode *dentry, struct inode *inode,
-			const struct qstr *qstr);
+static inline int ubifs_init_security(struct inode *dentry, struct inode *inode,
+			const struct qstr *qstr)
+{
+	return 0;
+}
 
 /* super.c */
 struct inode *ubifs_iget(struct super_block *sb, unsigned long inum);

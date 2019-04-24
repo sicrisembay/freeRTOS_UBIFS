@@ -85,9 +85,9 @@ static status_t _NAND_InitSEMC(void);
 BSP_NAND_RET_T BSP_NAND_Init(void)
 {
 	BSP_NAND_RET_T retval = BSP_NAND_SUCCESS;
-#if 0 /* Do not re-initialize SEMC, it will crash when code is running from SDRAM */
 	_NAND_InitPins();
 
+#if 0 /* Do not re-initialize SEMC, it will crash when code is running from SDRAM */
     CLOCK_InitSysPfd(kCLOCK_Pfd2, 30);
     /* Set semc clock to 163.86 MHz */
     CLOCK_SetMux(kCLOCK_SemcMux, 1);
@@ -235,14 +235,15 @@ static void _NAND_InitPins(void)
 
     IOMUXC_SetPinConfig(
         IOMUXC_GPIO_EMC_40_SEMC_RDY,            /* GPIO_EMC_40 PAD functional properties : */
-        0x01F0F9U);                             /* Slew Rate Field: Fast Slew Rate
+        0xF8F9U);                               /* Slew Rate Field: Fast Slew Rate
                                                    Drive Strength Field: R0/7
                                                    Speed Field: max(200MHz)
-                                                   Open Drain Enable Field: Open Drain Disabled
+                                                   Open Drain Enable Field: Open Drain Enabled
                                                    Pull / Keep Enable Field: Pull/Keeper Enabled
                                                    Pull / Keep Select Field: Pull
                                                    Pull Up / Down Config. Field: 22K Ohm Pull Up
-                                                   Hyst. Enable Field: Hysteresis Enabled */
+                                                   Hyst. Enable Field: Hysteresis Disabled */
+
     IOMUXC_SetPinConfig(
 		IOMUXC_GPIO_EMC_41_SEMC_CSX00,         		/* GPIO_EMC_41 PAD functional properties : */
 		0x0110F9u);                             	/* Slew Rate Field: Fast Slew Rate
@@ -295,6 +296,16 @@ static void _NAND_InitPins(void)
 													 Hyst. Enable Field: Hysteresis Enabled */
 }
 
+void BOARD_WriteU32(uint32_t addr, uint32_t val)
+{
+	*((volatile uint32_t*)addr) = val;
+}
+
+uint32_t BOARD_ReadU32(uint32_t addr)
+{
+	return((uint32_t)(*((volatile uint32_t*)addr)));
+}
+
 static status_t _NAND_InitSEMC(void)
 {
 	semc_config_t config;
@@ -313,6 +324,7 @@ static status_t _NAND_InitSEMC(void)
 	SEMC_Init(NAND_SEMC, &config);
 #endif /* 0 */
 
+#if 1
 	timeConfig.tCeSetup_Ns = 66;
 	timeConfig.tCeHold_Ns = 18;
 	timeConfig.tCeInterval_Ns = 3;
@@ -342,6 +354,20 @@ static status_t _NAND_InitSEMC(void)
 	nandConfig.portSize = kSEMC_PortSize8Bit;
 	nandConfig.timingConfig = &timeConfig;
 	return SEMC_ConfigureNAND(NAND_SEMC, &nandConfig, clockFrq);
+#else
+	uint32_t tempRegVal = 0;
+		BOARD_WriteU32(0x402F0030, 0x0000001F); // BR8
+		BOARD_WriteU32(0x402F0050, 0x00000560); // NANDCR0
+		//BOARD_WriteU32(0x402F0054, 0x00111103); // NANDCR1
+		BOARD_WriteU32(0x402F0054, 0x0047472A);
+		//BOARD_WriteU32(0x402F0058, 0x10002109); // NANDCR2
+		BOARD_WriteU32(0x402F0058, 0x20160813);
+		BOARD_WriteU32(0x402F005C, 0x00000000); // NANDCR3
+		/* Set IOCR */
+		tempRegVal = BOARD_ReadU32(0x402F0004);
+		tempRegVal |= 0x20;                     // MUX_CSX0 - NAND CE#
+	BOARD_WriteU32(0x402F0004, tempRegVal);
+#endif
 }
 
 bool BSP_NAND_Ready(void)

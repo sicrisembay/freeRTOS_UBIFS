@@ -55,7 +55,7 @@
 #ifdef CONFIG_UBI_SILENCE_MSG
 #define ubi_msg(ubi, fmt, ...)
 #else
-#define ubi_msg(ubi, fmt, ...) printk(UBI_NAME_STR "%d: " fmt "\n", \
+#define ubi_msg(ubi, fmt, ...) printk(UBI_NAME_STR "%d: " fmt "\n",	\
 					 ubi->ubi_num, ##__VA_ARGS__)
 #endif
 

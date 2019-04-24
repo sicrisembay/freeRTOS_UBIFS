@@ -28,6 +28,7 @@
 #include "zplCompat.h"
 #include "ubi_uboot.h"
 #include "ubi.h"
+#include <linux/math64.h>
 #endif /* __ZPL_BUILD__ */
 
 static int self_check_volumes(struct ubi_device *ubi);

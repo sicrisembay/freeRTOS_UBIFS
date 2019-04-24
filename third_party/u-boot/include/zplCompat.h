@@ -1,6 +1,19 @@
 #ifndef _ZPL_COMPAT_H_
 #define _ZPL_COMPAT_H_
 
+#if defined(__TEST_APP__)
+#include "stdlib.h"
+#include "string.h"
+#include "assert.h"
+struct mtd_info *mtd;
+static inline int fls64(int l) { assert(0); }
+static inline int __ffs(int l) { assert(0); }
+//#define atomic_set(v, i)     (((v)->counter) = (i))
+//#define atomic64_set(v, i)   atomic_set(v, i)
+#define local_irq_save(f)
+#define local_irq_restore(f)
+#include "asm/atomic.h"
+#endif
 #include "linux/kernel.h"
 #include "stddef.h"
 #include "stdio.h"
@@ -8,12 +21,18 @@
 
 #define _DEBUG      (1)
 
+#if defined(__TEST_APP__)
+#define __packed  __attribute__((packed))
+#endif
+
 #define CONFIG_SYS_CACHELINE_SIZE   32
 #define ARCH_DMA_MINALIGN           CONFIG_SYS_CACHELINE_SIZE
 #define CONFIG_SYS_MALLOC_LEN       (1 * 1024 * 1024)
 #define CONFIG_MTD_UBI_BEB_LIMIT    20
 
+#if !defined(__TEST_APP__)
 #define __always_inline inline
+#endif
 
 typedef signed char s8;
 typedef signed char __s8;
@@ -29,11 +48,14 @@ typedef unsigned short u16;
 typedef unsigned short __u16;
 typedef volatile unsigned short vu_short;
 
+#if !defined(__TEST_APP__)
 typedef int ssize_t;
+#endif
 typedef signed int s32;
 typedef signed int __s32;
 typedef unsigned int u32;
 typedef unsigned int __u32;
+//typedef unsigned int uint32_t;
 typedef unsigned long int ulong;
 typedef unsigned long int u_long;
 typedef unsigned long phys_addr_t;
@@ -45,16 +67,21 @@ typedef signed long long s64;
 typedef signed long long __s64;
 typedef unsigned long long u64;
 typedef unsigned long long __u64;
+typedef unsigned long long uint64_t;
+#if !defined(__TEST_APP__)
 typedef long long int __quad_t;
 typedef unsigned long long int __u_quad_t;
 //typedef __u_quad_t dev_t;
 //typedef unsigned int uid_t;
 //typedef unsigned int gid_t;
 typedef __quad_t loff_t;
+#endif
 
 #define BITS_PER_LONG 32
 
+#if !defined(__TEST_APP__)
 typedef long long int   loff_t;
+#endif
 typedef unsigned short  __u16;
 typedef unsigned int    __u32;
 typedef __u16           __le16;

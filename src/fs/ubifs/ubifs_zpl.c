@@ -107,18 +107,51 @@ void UBIFS_ZPL_Init(void)
 
 #if(ENABLE_UBIFS_LOAD_TEST == 1)
     if(bUbiFsMounted == true) {
-        char *filename = "/firmware/freeRTOS_ubiFS.bin";
-        char fileContent[64] = {0};
-        loff_t actread;
-        if(ubifs_ls(filename)) {
-            printf("** File not found %s **\n", filename);
-        } else {
-            if(!ubifs_read(filename, (void *)(&fileContent[0]), (loff_t)0, (loff_t)(sizeof(fileContent)), (loff_t*)&actread)) {
-                printf("Contents of %s: %s\n", filename, fileContent);
-            } else {
-                printf("Error in loading %s", filename);
-            }
-        }
+        char *filename = "/firmware/project_tres.bin";
+        char filename2[256] = "/test";
+	char dirname[256] = "/test_dir";
+        char fileContent[1024*1024];
+        char fileContent2[1024*1024];
+        loff_t actread, off;
+	int i, j;
+
+	for (i = 0; i < 10; i++) {
+		snprintf(dirname, sizeof(dirname), "/test_dir%02i", i);
+		ubifs_mkdir(dirname);
+
+		for (j = 0; j < 10; j++) {
+			snprintf(filename2, sizeof(filename2), "%s/file%02i", dirname, j);
+			memset(fileContent, 0x0, sizeof(fileContent));
+			off = 4096*j;
+			memset(&fileContent[0] + off, 'j', 10*(j + 1));
+			printf("writing %i bytes to %s at offset 0x%08x\n", 10*(j + 1), filename2, off);
+			if(ubifs_write(filename2, (void *)(&fileContent[0] + off), (loff_t)off, (loff_t)10*(j + 1), (loff_t*)&actread)) {
+				printf("write error\n");
+			}
+		}
+	}
+	printf("ls /\n");
+	ubifs_ls("/");
+	for (i = 0; i < 10; i++) {
+		snprintf(dirname, sizeof(dirname), "/test_dir%02i", i);
+		printf("%s\n", dirname);
+		ubifs_ls(dirname);
+
+		for (j = 0; j < 10; j++) {
+			snprintf(filename2, sizeof(filename2), "%s/file%02i", dirname, j);
+			memset(fileContent, 0x0, sizeof(fileContent));
+			off = 4096*j;
+			memset(&fileContent[0] + off, 'j', 10*(j + 1));
+			memset(fileContent2, 0x0, sizeof(fileContent2));
+			if(ubifs_read(filename2, (void *)(&fileContent2[0]), (loff_t)0, (loff_t)off + 10*(j+1), (loff_t*)&actread)) {
+				printf("%s read error\n", filename2);
+			}
+			if (memcmp(fileContent2, fileContent, off + 10*(j + 1))) {
+				printf("%s content error\n", filename2);
+			}
+		}
+	}
+	uboot_ubifs_umount();
     } else {
         printf("UBI volume not mounted!");
     }

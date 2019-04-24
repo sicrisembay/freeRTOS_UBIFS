@@ -768,6 +768,7 @@ struct mtd_info *get_mtd_device_nm(const char *name)
 	mutex_lock(&mtd_table_mutex);
 
 	mtd_for_each_device(other) {
+		printf("%s %s %s\n", __func__, name, other->name);
 		if (!strcmp(name, other->name)) {
 			mtd = other;
 			break;

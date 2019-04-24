@@ -511,8 +511,8 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 	if (slave->mtd.size == MTDPART_SIZ_FULL)
 		slave->mtd.size = master->size - slave->offset;
 
-	debug("0x%012x-0x%012x : \"%s\"\n", (unsigned long long)slave->offset,
-		(unsigned long long)(slave->offset + slave->mtd.size), slave->mtd.name);
+	debug("0x%012x-0x%012x : \"%s\"\n", (unsigned long)slave->offset,
+		(unsigned long)(slave->offset + slave->mtd.size), slave->mtd.name);
 
 	/* let's do some sanity checks */
 	if (slave->offset >= master->size) {

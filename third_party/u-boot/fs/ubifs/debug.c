@@ -1486,6 +1486,10 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c)
 
 int ubifs_debugging_init(struct ubifs_info *c)
 {
+	c->dbg = kzalloc(sizeof(struct ubifs_debug_info), GFP_KERNEL);
+	if (!c->dbg)
+		return -ENOMEM;
+
 	return 0;
 }
 void ubifs_debugging_exit(struct ubifs_info *c)

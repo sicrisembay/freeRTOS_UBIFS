@@ -162,8 +162,8 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 #endif /* CONFIG_PROFILE_ALL_BRANCHES */
 
 #else
-# define likely(x)	__builtin_expect(!!(x), 1)
-# define unlikely(x)	__builtin_expect(!!(x), 0)
+//# define likely(x)	__builtin_expect(!!(x), 1)
+//# define unlikely(x)	__builtin_expect(!!(x), 0)
 #endif
 
 /* Optimization barrier */

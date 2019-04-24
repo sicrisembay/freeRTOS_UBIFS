@@ -7,6 +7,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #else
+#include "zplCompat.h"
 #endif /* __ZPL_BUILD__ */
 
 struct p_current{
@@ -63,6 +64,8 @@ static inline void *kcalloc(size_t n, size_t size, gfp_t flags)
 	return kmalloc_array(n, size, flags | __GFP_ZERO);
 }
 
+void vPortFree( void *pv );
+
 #define vmalloc(size)	kmalloc(size, 0)
 #define __vmalloc(size, flags, pgsz)	kmalloc(size, flags)
 static inline void *vzalloc(unsigned long size)
@@ -71,11 +74,11 @@ static inline void *vzalloc(unsigned long size)
 }
 static inline void kfree(const void *block)
 {
-	free((void *)block);
+	vPortFree((void *)block);
 }
 static inline void vfree(const void *addr)
 {
-	free((void *)addr);
+	vPortFree((void *)addr);
 }
 
 struct kmem_cache { int sz; };
@@ -85,11 +88,11 @@ struct kmem_cache *get_mem(int element_sz);
 void *kmem_cache_alloc(struct kmem_cache *obj, int flag);
 static inline void kmem_cache_free(struct kmem_cache *cachep, void *obj)
 {
-	free(obj);
+	vPortFree(obj);
 }
 static inline void kmem_cache_destroy(struct kmem_cache *cachep)
 {
-	free(cachep);
+	vPortFree(cachep);
 }
 
 #define DECLARE_WAITQUEUE(...)	do { } while (0)
@@ -367,5 +370,14 @@ typedef unsigned long dmaaddr_t;
 #define enable_irq_wake(irq) -EINVAL
 #define free_irq(irq, data) do {} while (0)
 #define request_irq(nr, f, flags, nm, data) 0
+
+#define set_page_writeback
+#define SetPageError
+
+#define i_uid_read(x)	(0)
+#define i_gid_read(x)	(0)
+
+#define smp_wmb()
+#define smp_rmb()
 
 #endif

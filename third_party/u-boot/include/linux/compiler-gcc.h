@@ -80,7 +80,7 @@
 #define __inline	__inline	notrace
 #endif
 
-#define __always_inline	inline __attribute__((always_inline))
+//#define __always_inline	inline __attribute__((always_inline))
 #define  noinline	__attribute__((noinline))
 
 #define __deprecated	__attribute__((deprecated))
@@ -118,7 +118,7 @@
 #define __aligned(x)		__attribute__((aligned(x)))
 #define __printf(a, b)		__attribute__((format(printf, a, b)))
 #define __scanf(a, b)		__attribute__((format(scanf, a, b)))
-#define __attribute_const__	__attribute__((__const__))
+//#define __attribute_const__	__attribute__((__const__))
 #define __maybe_unused		__attribute__((unused))
 #define __always_unused		__attribute__((unused))
 
@@ -141,7 +141,7 @@
 #endif /* CONFIG_GCOV_KERNEL */
 
 #if GCC_VERSION >= 30400
-#define __must_check		__attribute__((warn_unused_result))
+//#define __must_check		__attribute__((warn_unused_result))
 #endif
 
 #if GCC_VERSION >= 40000

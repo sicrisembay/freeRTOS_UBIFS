@@ -206,6 +206,46 @@ int ubifs_decompress(const struct ubifs_info *c, const void *in_buf,
 	return err;
 }
 
+void ubifs_compress(const struct ubifs_info *c, const void *in_buf,
+		    int in_len, void *out_buf, int *out_len, int *compr_type)
+{
+	int err;
+	struct ubifs_compressor *compr = ubifs_compressors[*compr_type];
+
+	if (*compr_type == UBIFS_COMPR_NONE)
+		goto no_compr;
+
+	/* If the input data is small, do not even try to compress it */
+	if (in_len < UBIFS_MIN_COMPR_LEN)
+		goto no_compr;
+
+	if (compr->comp_mutex)
+		mutex_lock(compr->comp_mutex);
+	err = -EIO;//FIXME crypto_comp_compress(compr->cc, in_buf, in_len, out_buf,
+	//	   (unsigned int *)out_len);
+	if (compr->comp_mutex)
+		mutex_unlock(compr->comp_mutex);
+	if (unlikely(err)) {
+		ubifs_warn(c, "cannot compress %d bytes, compressor %s, error %d, leave data uncompressed",
+			   in_len, compr->name, err);
+		goto no_compr;
+	}
+
+	/*
+	 * If the data compressed only slightly, it is better to leave it
+	 * uncompressed to improve read speed.
+	 */
+	if (in_len - *out_len < UBIFS_MIN_COMPRESS_DIFF)
+		goto no_compr;
+
+	return;
+
+no_compr:
+	memcpy(out_buf, in_buf, in_len);
+	*out_len = in_len;
+	*compr_type = UBIFS_COMPR_NONE;
+}
+
 /**
  * compr_init - initialize a compressor.
  * @compr: compressor description object
@@ -475,16 +515,17 @@ out_free:
 	if (file->private_data)
 		kfree(file->private_data);
 	if (file)
-		free(file);
+		kfree(file);
 	if (dentry)
-		free(dentry);
+		kfree(dentry);
 	if (dir)
-		free(dir);
+		kfree(dir);
 
 	return ret;
 }
 
-static unsigned long ubifs_findfile(struct super_block *sb, char *filename)
+static unsigned long ubifs_findfile(struct super_block *sb, char *filename,
+	unsigned long *parent_dir)
 {
 	int ret;
 	char *next;
@@ -506,6 +547,8 @@ static unsigned long ubifs_findfile(struct super_block *sb, char *filename)
 	 * Handle root-direcoty ('/')
 	 */
 	inum = root_inum;
+	if (parent_dir)
+		*parent_dir = root_inum;
 	if (!name || *name == '\0')
 		return inum;
 
@@ -526,7 +569,7 @@ static unsigned long ubifs_findfile(struct super_block *sb, char *filename)
 			return 0;
 		inode = ubifs_iget(sb, inum);
 
-		if (!inode)
+		if (!inode || IS_ERR(inode))
 			return 0;
 		ui = ubifs_inode(inode);
 
@@ -566,6 +609,8 @@ static unsigned long ubifs_findfile(struct super_block *sb, char *filename)
 
 		root_inum = inum;
 		name = next;
+		if (parent_dir)
+			*parent_dir = inum;
 	}
 
 	return 0;
@@ -601,7 +646,7 @@ int ubifs_ls(const char *filename)
 	int ret = 0;
 
 	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READONLY);
-	inum = ubifs_findfile(ubifs_sb, (char *)filename);
+	inum = ubifs_findfile(ubifs_sb, (char *)filename, NULL);
 	if (!inum) {
 		ret = -1;
 		goto out;
@@ -627,11 +672,11 @@ int ubifs_ls(const char *filename)
 
 out_mem:
 	if (file)
-		free(file);
+		kfree(file);
 	if (dentry)
-		free(dentry);
+		kfree(dentry);
 	if (dir)
-		free(dir);
+		kfree(dir);
 
 out:
 	ubi_close_volume(c->ubi);
@@ -644,7 +689,7 @@ int ubifs_exists(const char *filename)
 	unsigned long inum;
 
 	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READONLY);
-	inum = ubifs_findfile(ubifs_sb, (char *)filename);
+	inum = ubifs_findfile(ubifs_sb, (char *)filename, NULL);
 	ubi_close_volume(c->ubi);
 
 	return inum != 0;
@@ -659,7 +704,7 @@ int ubifs_size(const char *filename, loff_t *size)
 
 	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READONLY);
 
-	inum = ubifs_findfile(ubifs_sb, (char *)filename);
+	inum = ubifs_findfile(ubifs_sb, (char *)filename, NULL);
 	if (!inum) {
 		err = -1;
 		goto out;
@@ -800,7 +845,7 @@ static int do_readpage(struct ubifs_info *c, struct inode *inode,
 				if (ret) {
 					err = ret;
 					if (err != -ENOENT) {
-						free(buff);
+						kfree(buff);
 						break;
 					}
 				}
@@ -813,7 +858,7 @@ static int do_readpage(struct ubifs_info *c, struct inode *inode,
 				/* Now copy required size back to dest */
 				memcpy(addr, buff, dlen);
 
-				free(buff);
+				kfree(buff);
 			} else {
 				ret = read_block(inode, addr, block, dn);
 				if (ret) {
@@ -872,7 +917,7 @@ int ubifs_read(const char *filename, void *buf, loff_t offset,
 	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READONLY);
 	/* ubifs_findfile will resolve symlinks, so we know that we get
 	 * the real file here */
-	inum = ubifs_findfile(ubifs_sb, (char *)filename);
+	inum = ubifs_findfile(ubifs_sb, (char *)filename, NULL);
 	if (!inum) {
 		err = -1;
 		goto out;
@@ -937,6 +982,425 @@ out:
 	return err;
 }
 
+/**
+ * inherit_flags - inherit flags of the parent inode.
+ * @dir: parent inode
+ * @mode: new inode mode flags
+ *
+ * This is a helper function for 'ubifs_new_inode()' which inherits flag of the
+ * parent directory inode @dir. UBIFS inodes inherit the following flags:
+ * o %UBIFS_COMPR_FL, which is useful to switch compression on/of on
+ *   sub-directory basis;
+ * o %UBIFS_SYNC_FL - useful for the same reasons;
+ * o %UBIFS_DIRSYNC_FL - similar, but relevant only to directories.
+ *
+ * This function returns the inherited flags.
+ */
+static int inherit_flags(const struct inode *dir, umode_t mode)
+{
+	int flags;
+	const struct ubifs_inode *ui = ubifs_inode(dir);
+
+	if (!S_ISDIR(dir->i_mode))
+		/*
+		 * The parent is not a directory, which means that an extended
+		 * attribute inode is being created. No flags.
+		 */
+		return 0;
+
+	flags = ui->flags & (UBIFS_COMPR_FL | UBIFS_SYNC_FL | UBIFS_DIRSYNC_FL);
+	if (!S_ISDIR(mode))
+		/* The "DIRSYNC" flag only applies to directories */
+		flags &= ~UBIFS_DIRSYNC_FL;
+	return flags;
+}
+
+/**
+ * ubifs_set_inode_flags - set VFS inode flags.
+ * @inode: VFS inode to set flags for
+ *
+ * This function propagates flags from UBIFS inode object to VFS inode object.
+ */
+void ubifs_set_inode_flags(struct inode *inode)
+{
+	unsigned int flags = ubifs_inode(inode)->flags;
+
+	inode->i_flags &= ~(S_SYNC | S_APPEND | S_IMMUTABLE | S_DIRSYNC);
+	if (flags & UBIFS_SYNC_FL)
+		inode->i_flags |= S_SYNC;
+	if (flags & UBIFS_APPEND_FL)
+		inode->i_flags |= S_APPEND;
+	if (flags & UBIFS_IMMUTABLE_FL)
+		inode->i_flags |= S_IMMUTABLE;
+	if (flags & UBIFS_DIRSYNC_FL)
+		inode->i_flags |= S_DIRSYNC;
+}
+
+/**
+ * ubifs_new_inode - allocate new UBIFS inode object.
+ * @c: UBIFS file-system description object
+ * @dir: parent directory inode
+ * @mode: inode mode flags
+ *
+ * This function finds an unused inode number, allocates new inode and
+ * initializes it. Returns new inode in case of success and an error code in
+ * case of failure.
+ */
+struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
+			      umode_t mode)
+{
+	int err;
+	struct inode *inode;
+	struct ubifs_inode *ui;
+
+	inode = c->vfs_sb->s_op->alloc_inode(c->vfs_sb);
+	ui = ubifs_inode(inode);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * Set 'S_NOCMTIME' to prevent VFS form updating [mc]time of inodes and
+	 * marking them dirty in file write path (see 'file_update_time()').
+	 * UBIFS has to fully control "clean <-> dirty" transitions of inodes
+	 * to make budgeting work.
+	 */
+	inode->i_flags |= S_NOCMTIME;
+
+	inode->i_uid = dir->i_uid;
+	inode->i_gid = dir->i_gid;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = dir->i_ctime;
+	inode->i_mode = mode;
+	inode->__i_nlink = 1;
+	switch (mode & S_IFMT) {
+	case S_IFREG:
+		break;
+	case S_IFDIR:
+		inode->i_size = ui->ui_size = UBIFS_INO_NODE_SZ;
+		break;
+	case S_IFLNK:
+		break;
+	case S_IFSOCK:
+	case S_IFIFO:
+	case S_IFBLK:
+	case S_IFCHR:
+		break;
+	default:
+		BUG();
+	}
+	ui->flags = inherit_flags(dir, mode);
+	ubifs_set_inode_flags(inode);
+	if (S_ISREG(mode))
+		ui->compr_type = c->default_compr;
+	else
+		ui->compr_type = UBIFS_COMPR_NONE;
+	ui->synced_i_size = 0;
+
+	spin_lock(&c->cnt_lock);
+	/* Inode number overflow is currently not supported */
+	if (c->highest_inum >= INUM_WARN_WATERMARK) {
+		if (c->highest_inum >= INUM_WATERMARK) {
+			spin_unlock(&c->cnt_lock);
+			ubifs_err(c, "out of inode numbers");
+			return ERR_PTR(-EINVAL);
+		}
+		ubifs_warn(c, "running out of inode numbers (current %lu, max %u)",
+			   (unsigned long)c->highest_inum, INUM_WATERMARK);
+	}
+
+	inode->i_ino = ++c->highest_inum;
+	/*
+	 * The creation sequence number remains with this inode for its
+	 * lifetime. All nodes for this inode have a greater sequence number,
+	 * and so it is possible to distinguish obsolete nodes belonging to a
+	 * previous incarnation of the same inode number - for example, for the
+	 * purpose of rebuilding the index.
+	 */
+	ui->creat_sqnum = ++c->max_sqnum;
+	spin_unlock(&c->cnt_lock);
+
+	return inode;
+}
+
+static struct inode *ubifs_create(struct inode *dir, struct qstr *nm, umode_t mode,
+			bool excl)
+{
+	struct inode *inode;
+	struct ubifs_info *c = dir->i_sb->s_fs_info;
+	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
+					.dirtied_ino = 1 };
+	struct ubifs_inode *dir_ui = ubifs_inode(dir);
+	int err, sz_change;
+
+	/*
+	 * Budget request settings: new inode, new direntry, changing the
+	 * parent directory inode.
+	 */
+
+	dbg_gen("dent '%s', mode %#hx in dir ino %lu",
+		nm->name, mode, dir->i_ino);
+
+	err = ubifs_budget_space(c, &req);
+	if (err)
+		return err;
+
+	sz_change = CALC_DENT_SIZE(fname_len(nm));
+
+	inode = ubifs_new_inode(c, dir, mode);
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
+		goto out_fname;
+	}
+
+	err = ubifs_init_security(dir, inode, nm);
+	if (err)
+		goto out_inode;
+
+	mutex_lock(&dir_ui->ui_mutex);
+	dir->i_size += sz_change;
+	dir_ui->ui_size = dir->i_size;
+	dir->i_mtime = dir->i_ctime = inode->i_ctime;
+	inode->i_size = 1024;
+	err = ubifs_jnl_update(c, dir, nm, inode, 0, 0);
+	if (err)
+		goto out_cancel;
+	mutex_unlock(&dir_ui->ui_mutex);
+
+	ubifs_release_budget(c, &req);
+
+	err = ubifs_run_commit(c);
+	if (err)
+		goto out_cancel;
+
+	return inode;
+
+out_cancel:
+	dir->i_size -= sz_change;
+	dir_ui->ui_size = dir->i_size;
+	mutex_unlock(&dir_ui->ui_mutex);
+out_inode:
+out_fname:
+out_budg:
+	ubifs_release_budget(c, &req);
+	ubifs_err(c, "cannot create regular file, error %d", err);
+	return PTR_ERR(err);
+}
+
+/**
+ * release_new_page_budget - release budget of a new page.
+ * @c: UBIFS file-system description object
+ *
+ * This is a helper function which releases budget corresponding to the budget
+ * of one new page of data.
+ */
+static void release_new_page_budget(struct ubifs_info *c)
+{
+	struct ubifs_budget_req req = { .recalculate = 1, .new_page = 1 };
+
+	ubifs_release_budget(c, &req);
+}
+
+static int do_writepage(struct ubifs_info *c, struct inode *inode, struct page *page, int len)
+{
+	int err = 0, i, blen;
+	unsigned int block;
+	void *addr;
+	union ubifs_key key;
+
+#ifdef UBIFS_DEBUG
+	struct ubifs_inode *ui = ubifs_inode(inode);
+	spin_lock(&ui->ui_lock);
+	ubifs_assert(page->index <= ui->synced_i_size >> PAGE_SHIFT);
+	spin_unlock(&ui->ui_lock);
+#endif
+
+	/* Update radix tree tags */
+	set_page_writeback(page);
+
+	addr = kmap(page);
+	block = page->index << UBIFS_BLOCKS_PER_PAGE_SHIFT;
+	i = 0;
+	while (len) {
+		blen = min_t(int, len, UBIFS_BLOCK_SIZE);
+		data_key_init(c, &key, inode->i_ino, block);
+		err = ubifs_jnl_write_data(c, inode, &key, addr, blen);
+		if (err)
+			break;
+		if (++i >= UBIFS_BLOCKS_PER_PAGE)
+			break;
+		block += 1;
+		addr += blen;
+		len -= blen;
+	}
+	if (err) {
+		SetPageError(page);
+		ubifs_err(c, "cannot write page %lu of inode %lu, error %d",
+			  page->index, inode->i_ino, err);
+		ubifs_ro_mode(c, err);
+	}
+	release_new_page_budget(c);
+	atomic_long_dec(&c->dirty_pg_cnt);
+	return err;
+}
+
+int ubifs_mkdir(const char *filename)
+{
+	struct ubifs_info *c = ubifs_sb->s_fs_info;
+	unsigned long inum, parent_dir;
+	struct inode *inode, *iparent_dir;
+	int err = 0;
+
+	struct qstr fn;
+	char *p;
+
+	p = strrchr(filename, '/');
+	if (!p) {
+		printf("%s: File path is not absolute '%s'!\n", __func__, filename);
+		err = -EINVAL;
+		goto out;
+	}
+		
+	fn.name = p + 1;
+	fn.len = strlen(p + 1);
+		
+	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READWRITE);
+	inum = ubifs_findfile(ubifs_sb, (char *)filename, &parent_dir);
+	if (!inum) {
+		iparent_dir = ubifs_iget(ubifs_sb, parent_dir);
+		if (IS_ERR(iparent_dir)) {
+			printf("%s: No parent dir inode for '%s'!\n", __func__, filename);
+			err = PTR_ERR(inode);
+			goto out;
+		}
+
+		inode = ubifs_create(iparent_dir, &fn, S_IFDIR, 0);
+		if (IS_ERR(inode)) {
+			printf("%s: Can't create inode %d!\n", __func__, (int)inode);
+			err = PTR_ERR(inode);
+			goto out;
+		}
+
+	} else {
+		printf("%s: This name already exists: %s!\n", __func__, filename);
+		err = -EACCES;
+	}
+
+out:
+	ubi_close_volume(c->ubi);
+	return 0;
+}
+
+int ubifs_write(const char *filename, void *buf, loff_t offset,
+	       loff_t size, loff_t *actwritten)
+{
+	struct ubifs_info *c = ubifs_sb->s_fs_info;
+	unsigned long inum, parent_dir;
+	struct inode *inode, *iparent_dir;
+	struct page page;
+	struct ubifs_inode *ui;
+	int err = 0;
+	int i;
+	int count;
+	int last_block_size = 0;
+	struct qstr fn;
+	char *p;
+
+	p = strrchr(filename, '/');
+	if (!p) {
+		printf("%s: File path is not absolute '%s'!\n", __func__, filename);
+		err = -EINVAL;
+		goto out;
+	}
+		
+	fn.name = p + 1;
+	fn.len = strlen(p + 1);
+		
+	*actwritten = 0;
+
+	if (offset & (PAGE_SIZE - 1)) {
+		printf("ubifs: Error offset must be a multiple of %d\n",
+		       PAGE_SIZE);
+		return -1;
+	}
+
+	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READWRITE);
+	/* ubifs_findfile will resolve symlinks, so we know that we get
+	 * the real file here */
+	inum = ubifs_findfile(ubifs_sb, (char *)filename, &parent_dir);
+
+	iparent_dir = ubifs_iget(ubifs_sb, parent_dir);
+	if (IS_ERR(iparent_dir)) {
+		printf("%s: No parent dir inode for '%s'!\n", __func__, filename);
+		err = PTR_ERR(inode);
+		goto out;
+	}
+
+	if (!inum) {
+		inode = ubifs_create(iparent_dir, &fn, S_IFREG, 0);
+		if (IS_ERR(inode)) {
+			printf("%s: Can't create inode %d!\n", __func__, (int)inode);
+			err = PTR_ERR(inode);
+			goto out;
+		}
+		inum = ubifs_findfile(ubifs_sb, (char *)filename, &parent_dir);
+		if (!inum) {
+			printf("%s: Can't find created inode!\n", __func__);
+			err = PTR_ERR(inode);
+			goto out;
+		}
+	}
+
+	inode = ubifs_iget(ubifs_sb, inum);
+	if (IS_ERR(inode)) {
+		printf("%s: Error reading inode %ld!\n", __func__, inum);
+		err = PTR_ERR(inode);
+		goto out;
+	}
+
+	ui = ubifs_inode(inode);
+	count = (size + UBIFS_BLOCK_SIZE - 1) >> UBIFS_BLOCK_SHIFT;
+
+	page.addr = buf;
+	page.index = offset / PAGE_SIZE;
+	page.inode = inode;
+	last_block_size = PAGE_SIZE;
+	for (i = 0; i < count; i++) {
+		/*
+		 * Make sure to not read beyond the requested size
+		 */
+		if (((i + 1) == count))
+			last_block_size = size - (i * PAGE_SIZE);
+		
+		err = do_writepage(c, inode, &page, last_block_size);
+		if (err)
+			break;
+
+		page.addr += PAGE_SIZE;
+		page.index++;
+	}
+
+	if (err) {
+		printf("Error writing file '%s'\n", filename);
+		*actwritten = i * PAGE_SIZE;
+	} else {
+		*actwritten = size;
+	}
+
+	if (inode->i_size < offset + *actwritten) {
+		inode->i_size = offset + *actwritten;
+		ui->ui_size = offset + *actwritten;
+		ui->dirty = 1;
+		err = ubifs_jnl_write_inode(c, inode);
+		if (err)
+			goto out;
+	}
+
+	ubifs_run_commit(c);
+
+out:
+	ubi_close_volume(c->ubi);
+	return err;
+}
+
 void ubifs_close(void)
 {
 }
@@ -961,9 +1425,11 @@ int ubifs_load(char *filename, u32 addr, u32 size)
 void uboot_ubifs_umount(void)
 {
 	if (ubifs_sb) {
+		struct ubifs_info *c = ubifs_sb->s_fs_info;
+
 		printf("Unmounting UBIFS volume %s!\n",
 		       ((struct ubifs_info *)(ubifs_sb->s_fs_info))->vi.name);
-		ubifs_umount(ubifs_sb->s_fs_info);
+		ubifs_umount(c);
 		ubifs_sb = NULL;
 	}
 }

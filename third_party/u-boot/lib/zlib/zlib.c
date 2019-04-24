@@ -17,6 +17,7 @@
 #else
 #include "zplCompat.h"
 #include "linux/crc32.h"
+//typedef unsigned long           uintptr_t;
 #endif /* __ZPL_BUILD__ */
 
 #ifdef CONFIG_GZIP_COMPRESSED

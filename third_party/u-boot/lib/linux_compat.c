@@ -21,11 +21,13 @@ unsigned long copy_from_user(void *dest, const void *src,
 	return 0;
 }
 
+void *pvPortMalloc( size_t xWantedSize );
+
 void *kmalloc(size_t size, int flags)
 {
 	void *p;
 
-	p = memalign(ARCH_DMA_MINALIGN, size);
+	p = pvPortMalloc(size);
 	if (flags & __GFP_ZERO)
 		memset(p, 0, size);
 
@@ -36,7 +38,7 @@ struct kmem_cache *get_mem(int element_sz)
 {
 	struct kmem_cache *ret;
 
-	ret = memalign(ARCH_DMA_MINALIGN, sizeof(struct kmem_cache));
+	ret = pvPortMalloc(sizeof(struct kmem_cache));
 	ret->sz = element_sz;
 
 	return ret;
@@ -44,5 +46,5 @@ struct kmem_cache *get_mem(int element_sz)
 
 void *kmem_cache_alloc(struct kmem_cache *obj, int flag)
 {
-	return memalign(ARCH_DMA_MINALIGN, obj->sz);
+	return pvPortMalloc(obj->sz);
 }

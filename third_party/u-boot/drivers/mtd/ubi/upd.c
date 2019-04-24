@@ -43,6 +43,7 @@
 #include "ubi_uboot.h"
 #include "linux/err.h"
 #include "ubi.h"
+#include <linux/math64.h>
 #endif /* __ZPL_BUILD__ */
 /**
  * set_update_marker - set update marker.

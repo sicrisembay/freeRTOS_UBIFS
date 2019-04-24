@@ -1393,7 +1393,6 @@ static int lookup_level0_dirty(struct ubifs_info *c, const union ubifs_key *key,
  */
 static int maybe_leb_gced(struct ubifs_info *c, int lnum, int gc_seq1)
 {
-#ifndef __UBOOT__
 	int gc_seq2, gced_lnum;
 
 	gced_lnum = c->gced_lnum;
@@ -1415,9 +1414,6 @@ static int maybe_leb_gced(struct ubifs_info *c, int lnum, int gc_seq1)
 	/* Finally we can check lnum */
 	if (gced_lnum == lnum)
 		return 1;
-#else
-	/* No garbage collection in the read-only U-Boot implementation */
-#endif
 	return 0;
 }
 
@@ -3290,7 +3286,7 @@ int dbg_check_inode_size(struct ubifs_info *c, const struct inode *inode,
 	union ubifs_key from_key, to_key, *key;
 	struct ubifs_znode *znode;
 	unsigned int block;
-
+#define S_ISREG(m)    (((m) & S_IFMT) == S_IFREG)
 	if (!S_ISREG(inode->i_mode))
 		return 0;
 	if (!dbg_is_chk_gen(c))

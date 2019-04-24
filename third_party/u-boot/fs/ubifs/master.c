@@ -350,7 +350,6 @@ int ubifs_read_master(struct ubifs_info *c)
 	return err;
 }
 
-#ifndef __UBOOT__
 /**
  * ubifs_write_master - write master node.
  * @c: UBIFS file-system description object
@@ -396,4 +395,3 @@ int ubifs_write_master(struct ubifs_info *c)
 
 	return err;
 }
-#endif

@@ -15,6 +15,8 @@
 //*****************************************************************************
 #include "zplCompat.h"
 
+#if !defined(__TEST_APP__)
+
 #define COMPAT_VAR_NAME_MAX_LEN                 (32)
 #define COMPAT_VAR_VAL_MAX_LEN                  (128)
 
@@ -96,3 +98,5 @@ int setenv_hex(const char *varname, ulong value)
     tempStr[COMPAT_VAR_NAME_MAX_LEN - 1] = '\0';
     return (setenv(varname, tempStr));
 }
+
+#endif
