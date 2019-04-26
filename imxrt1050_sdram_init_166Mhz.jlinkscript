@@ -15,6 +15,19 @@ Purpose :
 
 
 void Clock_Init() {
+  unsigned int reg;
+  
+  //==== DCDC Setting ========================
+  // Setting the VDD_SOC to 1.275V. It is necessary to config AHB to 600Mhz. */
+  reg = MEM_ReadU32(0x4008000C);
+  reg = reg & 0xFFFFFFE0;
+  reg = reg | 0x13;
+  MEM_WriteU32(0x4008000C, reg);
+  /* Waiting for DCDC_STS_DC_OK bit is asserted */
+  do {
+    reg = MEM_ReadU32(0x40080000);
+  } while ((reg & 0x80000000) == 0);
+
   // Enable all clocks
   MEM_WriteU32(0x400FC068,0xffffffff);
   MEM_WriteU32(0x400FC06C,0xffffffff);
@@ -23,26 +36,45 @@ void Clock_Init() {
   MEM_WriteU32(0x400FC078,0xffffffff);
   MEM_WriteU32(0x400FC07C,0xffffffff);
   MEM_WriteU32(0x400FC080,0xffffffff);
+  
+  //==== Configure CCM_ANALOG ================
+  // CCM_ANALOG_PLL_ARM
+  // Fout = Fin * div_select/2.0
+  // PLL1_MAIN_CLK = (24MHz * 100) / 2.0 = 1.2GHz
+  MEM_WriteU32(0x400D8000, 0x00012064);
+  do {
+    reg = MEM_ReadU32(0x400D8000);
+  } while((reg & 0x80000000) == 0);
+  MEM_WriteU32(0x400D8000, 0x00002064);
 
-  //===========================================================
-  //166mhz config
-  //===========================================================
-  //new by bruce.  
-  // Numerator of 528Mhz??PLL Fractional Loop Divider
-  // Fpll = 24* (22 + A/B) = 533.25Mhz = 533Mhz
-  //ANATOP_HW_ANADIG_PLL_528_NUM = 0x00000038;   //A = 56
-  //ANATOP_HW_ANADIG_PLL_528_DENOM = 0x00000100; //B = 256 
-  MEM_WriteU32(0x400D8050,0x00000038);
-  MEM_WriteU32(0x400D8060, 0x00000100);
-  MEM_WriteU32(0x400D8030,0x00002001);  //pll2 528 iniate
-  //freq=(533.25*18/29)/2
-  //with heavy loading, sdram may not support such high(166mhz) frequency since dq7 bit error.
-  //MEM_WriteU32(0x400D8100,0x001e0000); //160mhz--pfd value (no)
-  //MEM_WriteU32(0x400D8100,0x001f0000); //154mhz--pfd value (no)
-  //MEM_WriteU32(0x400D8100,0x00200000); //150mhz--pfd value (no)
-  //MEM_WriteU32(0x400D8100,0x00230000); //137mhz--pfd value (no)
-  MEM_WriteU32(0x400D8100,0x001d0000);  //166mhz --pfd value
-  MEM_WriteU32(0x400FC014,0x00010D40);  //166mhz--select pfd
+  // CCM_ANALOG_PLL_SYS
+  // Fout = Fref * 22
+  // Fref = 24MHz (BYPASS_CLK_SRC = 0x0)
+  // NUM = 56
+  // DENOM = 256
+  // SYS_PLL = 24MHz * (22 + 56 / 256) = 533.25MHz
+  MEM_WriteU32(0x400D8050, 0x00000038); // NUM
+  MEM_WriteU32(0x400D8060, 0x00000100); // DENOM
+  MEM_WriteU32(0x400D8030, 0x00012001);
+  do {
+    reg = MEM_ReadU32(0x400D8030);
+  } while((reg & 0x80000000) == 0);
+  MEM_WriteU32(0x400D8030, 0x00002001);
+  
+  // PFD2_FRAC = 29 (0x1D)
+  // PLL2_PFD2_CLK = 533.25MHz * 18 / PFD2_FRAC = 330.98MHz
+  MEM_WriteU32(0x400D8100, 0x001D0000);
+  
+  //==== Configure CCM =======================
+  // CCM_CBCDR (Periph_Clock_podf Div1; Semc_podf Div 2; Ahb_podf Div1; Ipg_podf Div4)
+  // SEMC_ALT_CLK_SEL = 0 (PLL2_PFD2_CLK)
+  // SEMC_CLK_SEL = 1 (Use ALT_CLK which is PLL2_PFD2)
+  // SEMC_CLK_ROOT = PLL2_PFD2_CLK / SEMC_PODF = 330.98MHz / 2 = 165.5MHz
+  MEM_WriteU32(0x400FC014, 0x00098340);
+  // Wait for ALL divider handshake is finished
+  do {
+    reg = MEM_ReadU32(0x400FC048);
+  } while((reg & 0x0001002B) != 0);
 
   Report("Clock Init Done");
 }
@@ -145,36 +177,34 @@ void SDRAM_Init() {
   MEM_WriteU32(0x401F8298,0x000110F9); // EMC_37
   MEM_WriteU32(0x401F829C,0x000110F9); // EMC_38
   MEM_WriteU32(0x401F82A0,0x000110F9); // EMC_39
-  MEM_WriteU32(0x401F82A4,0x0001F0F9); // EMC_40
+  MEM_WriteU32(0x401F82A4,0x0001F0F9); // EMC_40  /* Pull up for NAND Flash RDY */
   MEM_WriteU32(0x401F82A8,0x000110F9); // EMC_41
 
-  // Config SDR Controller Registers/
-  MEM_WriteU32(0x402F0000,0x10000004); // MCR
-  MEM_WriteU32(0x402F0008,0x00030524); // BMCR0
-  MEM_WriteU32(0x402F000C,0x06030524); // BMCR1
-  MEM_WriteU32(0x402F0010,0x8000001B); // BR0, 32MB
-  MEM_WriteU32(0x402F0014,0x8200001B); // BR1, 32MB
-  MEM_WriteU32(0x402F0018,0x8400001B); // BR2, 32MB
-  MEM_WriteU32(0x402F001C,0x8600001B); // BR3, 32MB
-  MEM_WriteU32(0x402F0020,0x90000021); // BR4,
-  MEM_WriteU32(0x402F0024,0xA0000019); // BR5,
-  MEM_WriteU32(0x402F0028,0xA8000017); // BR6,
-  MEM_WriteU32(0x402F002C,0xA900001B); // BR7,
-  MEM_WriteU32(0x402F0030,0x00000021); // BR8,
-  MEM_WriteU32(0x402F0004,0x000079A8);  //IOCR,SEMC_CCSX0 as NOR CE, SEMC_CSX1 as PSRAM CE, SEMC_CSX2 as NAND CE, SEMC_CSX3 as DBI CE.
- 
-  //MEM_WriteU32(0x402F0004,0x00000008); // IOCR, SEMC_CCSX0 as SDRAM_CS1
+  // Config SEMC Controller Registers
+  MEM_WriteU32(0x402F0000,0x01000004); // MCR
+  MEM_WriteU32(0x402F0008,0x00057EE8); // BMCR0
+  MEM_WriteU32(0x402F000C,0x00057EEC); // BMCR1
+  MEM_WriteU32(0x402F0010,0x80000019); // BR0, 16MB Valid (SDRAM)
+  MEM_WriteU32(0x402F0014,0x8200001A); // BR1, 32MB Invalid (Not Used)
+  MEM_WriteU32(0x402F0018,0x8400001A); // BR2, 32MB Invalid (Not Used)
+  MEM_WriteU32(0x402F001C,0x8600001A); // BR3, 32MB Invalid (Not Used)
+  MEM_WriteU32(0x402F0020,0x9e00001F); // BR4, 128MB Valid (NAND, AXI only)
+  MEM_WriteU32(0x402F0024,0xA0000018); // BR5, 16MB Invalid (Not Used)
+  MEM_WriteU32(0x402F0028,0xA8000018); // BR6, 16MB Invalid (Not Used)
+  MEM_WriteU32(0x402F002C,0xA9000018); // BR7, 16MB Invalid (Not Used)
+  MEM_WriteU32(0x402F0030,0x0000001F); // BR8, 128MB Valid (NAND, IP only)
+  MEM_WriteU32(0x402F0004,0x00000020); // IOCR, SEMC_RDY as NAND Ready; SEMC_CSX1 as NAND CS; SEMC_A8 as SDRAM A8
+
+  // SDRAM Configuration Registers
   MEM_WriteU32(0x402F0040,0x00000F31); // SDRAMCR0
   MEM_WriteU32(0x402F0044,0x00652922); // SDRAMCR1
   MEM_WriteU32(0x402F0048,0x00010920); // SDRAMCR2
   MEM_WriteU32(0x402F004C,0x50210A08); // SDRAMCR3
 
-  MEM_WriteU32(0x402F0080,0x00000021); // DBICR0
-  MEM_WriteU32(0x402F0084,0x00888888); // DBICR1
   MEM_WriteU32(0x402F0094,0x00000002); // IPCR1
   MEM_WriteU32(0x402F0098,0x00000000); // IPCR2
-
   MEM_WriteU32(0x402F0090,0x80000000); // IPCR0
+
   MEM_WriteU32(0x402F009C,0xA55A000F); // IPCMD, SD_CC_IPREA
   SDRAM_WaitIpCmdDone();
   MEM_WriteU32(0x402F0090,0x80000000); // IPCR0
@@ -186,11 +216,10 @@ void SDRAM_Init() {
   MEM_WriteU32(0x402F00A0,0x00000033); // IPTXDAT
   MEM_WriteU32(0x402F0090,0x80000000); // IPCR0
   MEM_WriteU32(0x402F009C,0xA55A000A); // SD_CC_IMS
-  SDRAM_WaitIpCmdDone();
-    
-  Report("SDRAM Init Done");
-
+  SDRAM_WaitIpCmdDone();  
   MEM_WriteU32(0x402F004C,0x50210A09 ); // enable sdram self refresh again after initialization done.
+
+  Report("SDRAM Init Done");
 }
 
 /* ConfigTarget */

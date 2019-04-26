@@ -342,6 +342,7 @@ static int filldir(struct ubifs_info *c, const char *name, int namlen,
 	printf("%s\n", name);
 #else
 	printf("%9ld  %24.24s  %s\n", (u32)(inode->i_size), filetime, name);
+	ubifs_iput(inode);
 #endif /* __ZPL_BUILD__ */
 	return 0;
 }
@@ -579,6 +580,7 @@ static unsigned long ubifs_findfile(struct super_block *sb, char *filename,
 			/* We have some sort of symlink recursion, bail out */
 			if (symlink_count++ > 8) {
 				printf("Symlink recursion, aborting\n");
+				ubifs_iput(inode);
 				return 0;
 			}
 			memcpy(link_name, ui->data, ui->data_len);
@@ -596,6 +598,7 @@ static unsigned long ubifs_findfile(struct super_block *sb, char *filename,
 					link_name, next == NULL ? "" : next);
 			memcpy(symlinkpath, buf, sizeof(buf));
 			next = name = symlinkpath;
+			ubifs_iput(inode);
 			continue;
 		}
 
@@ -604,13 +607,16 @@ static unsigned long ubifs_findfile(struct super_block *sb, char *filename,
 		 */
 
 		/* Found the node!  */
-		if (!next || *next == '\0')
+		if (!next || *next == '\0') {
+			ubifs_iput(inode);
 			return inum;
+		}
 
 		root_inum = inum;
 		name = next;
 		if (parent_dir)
 			*parent_dir = inum;
+		ubifs_iput(inode);
 	}
 
 	return 0;
@@ -1058,6 +1064,10 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
+	inode->i_sb = c->vfs_sb;
+	list_add(&inode->i_sb_list, &c->vfs_sb->s_inodes);
+	inode->i_state = I_LOCK | I_NEW;
+
 	/*
 	 * Set 'S_NOCMTIME' to prevent VFS form updating [mc]time of inodes and
 	 * marking them dirty in file write path (see 'file_update_time()').
@@ -1242,6 +1252,144 @@ static int do_writepage(struct ubifs_info *c, struct inode *inode, struct page *
 	return err;
 }
 
+/**
+ * check_dir_empty - check if a directory is empty or not.
+ * @dir: VFS inode object of the directory to check
+ *
+ * This function checks if directory @dir is empty. Returns zero if the
+ * directory is empty, %-ENOTEMPTY if it is not, and other negative error codes
+ * in case of of errors.
+ */
+static int ubifs_check_dir_empty(struct inode *dir)
+{
+	struct ubifs_info *c = dir->i_sb->s_fs_info;
+	struct fscrypt_name nm = { 0 };
+	struct ubifs_dent_node *dent;
+	union ubifs_key key;
+	int err;
+
+	lowest_dent_key(c, &key, dir->i_ino);
+	dent = ubifs_tnc_next_ent(c, &key, &nm);
+	if (IS_ERR(dent)) {
+		err = PTR_ERR(dent);
+		if (err == -ENOENT)
+			err = 0;
+	} else {
+		kfree(dent);
+		err = -ENOTEMPTY;
+	}
+	return err;
+}
+
+int ubifs_rmdir(const char *filename)
+{
+	struct ubifs_info *c = ubifs_sb->s_fs_info;
+	unsigned long inum, idir;
+	struct inode *inode, *dir;
+	int err, sz_change, budgeted = 1;
+	struct ubifs_inode *dir_ui;
+	struct ubifs_budget_req req = { .mod_dent = 1, .dirtied_ino = 2 };
+	struct qstr nm;
+	char *p;
+
+	p = strrchr(filename, '/');
+	if (!p) {
+		printf("%s: File path is not absolute '%s'!\n", __func__, filename);
+		err = -EINVAL;
+		goto out;
+	}
+		
+	nm.name = p + 1;
+	nm.len = strlen(p + 1);
+		
+	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READWRITE);
+
+
+	/*
+	 * Budget request settings: deletion direntry, deletion inode and
+	 * changing the parent inode. If budgeting fails, go ahead anyway
+	 * because we have extra space reserved for deletions.
+	 */
+
+	dbg_gen("directory '%pd', ino %lu in dir ino %lu", dentry,
+		inode->i_ino, dir->i_ino);
+
+	inum = ubifs_findfile(ubifs_sb, (char *)filename, &idir);
+
+	dir = ubifs_iget(ubifs_sb, idir);
+	if (IS_ERR(dir)) {
+		printf("%s: No parent dir inode for '%s'!\n", __func__, filename);
+		err = PTR_ERR(dir);
+		goto out;
+	}
+	dir_ui = ubifs_inode(dir);
+
+	if (!inum) {
+		printf("%s: No inode for '%s'!\n", __func__, filename);
+		err = PTR_ERR(inode);
+		goto out;
+	}
+
+	inode = ubifs_iget(ubifs_sb, inum);
+	if (IS_ERR(inode)) {
+		printf("%s: Error reading inode %ld!\n", __func__, inum);
+		err = PTR_ERR(inode);
+		goto out_dir;
+	}
+	
+	err = ubifs_check_dir_empty(inode);
+	if (err)
+		goto out_inode;
+
+	sz_change = CALC_DENT_SIZE(fname_len(&nm));
+
+	err = ubifs_budget_space(c, &req);
+	if (err) {
+		if (err != -ENOSPC)
+			goto out_inode;
+		budgeted = 0;
+	}
+
+	inode->i_ctime = dir->i_ctime;
+	inode->__i_nlink = 0;
+	dir->__i_nlink--;
+	dir->i_size -= sz_change;
+	dir_ui->ui_size = dir->i_size;
+	dir->i_mtime = dir->i_ctime = inode->i_ctime;
+	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0);
+	if (err)
+		goto out_cancel;
+
+	if (budgeted)
+		ubifs_release_budget(c, &req);
+	else {
+		/* We've deleted something - clean the "no space" flags */
+		c->bi.nospace = c->bi.nospace_rp = 0;
+		smp_wmb();
+	}
+
+	ubifs_iput(dir);
+	ubifs_iput(inode);
+
+	ubi_close_volume(c->ubi);
+	return 0;
+
+out_cancel:
+	dir->i_size += sz_change;
+	dir_ui->ui_size = dir->i_size;
+	dir->__i_nlink++;
+	inode->__i_nlink = 2;
+	if (budgeted)
+		ubifs_release_budget(c, &req);
+out_inode:
+	ubifs_iput(inode);
+out_dir:
+	ubifs_iput(dir);
+out:
+	ubi_close_volume(c->ubi);
+	return err;
+}
+
 int ubifs_mkdir(const char *filename)
 {
 	struct ubifs_info *c = ubifs_sb->s_fs_info;
@@ -1276,17 +1424,21 @@ int ubifs_mkdir(const char *filename)
 		if (IS_ERR(inode)) {
 			printf("%s: Can't create inode %d!\n", __func__, (int)inode);
 			err = PTR_ERR(inode);
-			goto out;
+			goto out_dir;
 		}
 
 	} else {
 		printf("%s: This name already exists: %s!\n", __func__, filename);
 		err = -EACCES;
+		goto out;
 	}
 
+	ubifs_iput(inode);
+out_dir:
+	ubifs_iput(iparent_dir);
 out:
 	ubi_close_volume(c->ubi);
-	return 0;
+	return err;
 }
 
 int ubifs_write(const char *filename, void *buf, loff_t offset,
@@ -1330,7 +1482,7 @@ int ubifs_write(const char *filename, void *buf, loff_t offset,
 	iparent_dir = ubifs_iget(ubifs_sb, parent_dir);
 	if (IS_ERR(iparent_dir)) {
 		printf("%s: No parent dir inode for '%s'!\n", __func__, filename);
-		err = PTR_ERR(inode);
+		err = PTR_ERR(iparent_dir);
 		goto out;
 	}
 
@@ -1341,13 +1493,16 @@ int ubifs_write(const char *filename, void *buf, loff_t offset,
 			err = PTR_ERR(inode);
 			goto out;
 		}
+		ubifs_iput(inode);
 		inum = ubifs_findfile(ubifs_sb, (char *)filename, &parent_dir);
 		if (!inum) {
 			printf("%s: Can't find created inode!\n", __func__);
 			err = PTR_ERR(inode);
-			goto out;
+			goto out_inode;
 		}
 	}
+
+	ubifs_iput(iparent_dir);
 
 	inode = ubifs_iget(ubifs_sb, inum);
 	if (IS_ERR(inode)) {
@@ -1365,7 +1520,7 @@ int ubifs_write(const char *filename, void *buf, loff_t offset,
 	last_block_size = PAGE_SIZE;
 	for (i = 0; i < count; i++) {
 		/*
-		 * Make sure to not read beyond the requested size
+		 * Make sure to not write beyond the requested size
 		 */
 		if (((i + 1) == count))
 			last_block_size = size - (i * PAGE_SIZE);
@@ -1391,11 +1546,119 @@ int ubifs_write(const char *filename, void *buf, loff_t offset,
 		ui->dirty = 1;
 		err = ubifs_jnl_write_inode(c, inode);
 		if (err)
-			goto out;
+			goto out_inode;
 	}
 
 	ubifs_run_commit(c);
 
+out_inode:
+	ubifs_iput(inode);
+out:
+	ubi_close_volume(c->ubi);
+	return err;
+}
+
+int ubifs_unlink(const char *filename)
+{
+	struct ubifs_info *c = ubifs_sb->s_fs_info;
+	unsigned long inum, idir;
+	struct inode *inode, *dir;
+	struct ubifs_inode *dir_ui;
+	int err, sz_change, budgeted = 1;
+	struct ubifs_budget_req req = { .mod_dent = 1, .dirtied_ino = 2 };
+	unsigned int saved_nlink;
+	struct qstr nm;
+	char *p;
+
+	p = strrchr(filename, '/');
+	if (!p) {
+		printf("%s: File path is not absolute '%s'!\n", __func__, filename);
+		err = -EINVAL;
+		goto out;
+	}
+		
+	nm.name = p + 1;
+	nm.len = strlen(p + 1);
+		
+	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READWRITE);
+
+	/*
+	 * Budget request settings: deletion direntry, deletion inode (+1 for
+	 * @dirtied_ino), changing the parent directory inode. If budgeting
+	 * fails, go ahead anyway because we have extra space reserved for
+	 * deletions.
+	 */
+
+	dbg_gen("dent '%pd' from ino %lu (nlink %d) in dir ino %lu",
+		dentry, inode->i_ino,
+		inode->i_nlink, dir->i_ino);
+
+	inum = ubifs_findfile(ubifs_sb, (char *)filename, &idir);
+
+	dir = ubifs_iget(ubifs_sb, idir);
+	if (IS_ERR(dir)) {
+		printf("%s: No parent dir inode for '%s'!\n", __func__, filename);
+		err = PTR_ERR(dir);
+		goto out;
+	}
+	dir_ui = ubifs_inode(dir);
+
+	if (!inum) {
+		printf("%s: No inode for '%s'!\n", __func__, filename);
+		err = PTR_ERR(inode);
+		goto out_dir;
+	}
+
+	inode = ubifs_iget(ubifs_sb, inum);
+	if (IS_ERR(inode)) {
+		printf("%s: Error reading inode %ld!\n", __func__, inum);
+		err = PTR_ERR(inode);
+		goto out_dir;
+	}
+	
+	sz_change = CALC_DENT_SIZE(fname_len(&nm));
+
+	err = ubifs_budget_space(c, &req);
+	if (err) {
+		if (err != -ENOSPC)
+			goto out_inode;
+		budgeted = 0;
+	}
+
+	inode->i_ctime = dir->i_ctime;
+	saved_nlink = inode->i_nlink;
+	inode->__i_nlink--;
+	dir->i_size -= sz_change;
+	dir_ui->ui_size = dir->i_size;
+	dir->i_mtime = dir->i_ctime = inode->i_ctime;
+	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0);
+	if (err)
+		goto out_cancel;
+
+	if (budgeted)
+		ubifs_release_budget(c, &req);
+	else {
+		/* We've deleted something - clean the "no space" flags */
+		c->bi.nospace = c->bi.nospace_rp = 0;
+		smp_wmb();
+	}
+
+	ubifs_iput(dir);
+	ubifs_iput(inode);
+
+	ubi_close_volume(c->ubi);
+	return 0;
+
+out_cancel:
+	dir->i_size += sz_change;
+	dir_ui->ui_size = dir->i_size;
+	set_nlink(inode, saved_nlink);
+	if (budgeted)
+		ubifs_release_budget(c, &req);
+out_inode:
+	ubifs_iput(inode);
+out_dir:
+	ubifs_iput(dir);
 out:
 	ubi_close_volume(c->ubi);
 	return err;

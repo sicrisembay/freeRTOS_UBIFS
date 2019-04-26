@@ -58,8 +58,6 @@ static void BOARD_ConfigMPU(void)
      * param Size              Region size of the region to be configured. use ARM_MPU_REGION_SIZE_xxx MACRO in core_cm7.h.
      */
 
-    /* Region 0 Setting */
-    ARM_MPU_SetRegionEx(0, 0xC0000000, ARM_MPU_RASR(1, ARM_MPU_AP_FULL, 2, 0, 0, 0, 0, ARM_MPU_REGION_SIZE_512MB));
     /*
      * 16MB SDRAM is divided into two regions for instruction code and data
      * 8MB Instruction code region starts at 0x80000000
@@ -68,11 +66,6 @@ static void BOARD_ConfigMPU(void)
     ARM_MPU_SetRegionEx(1, 0x80000000, ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 1, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_8MB));
     ARM_MPU_SetRegionEx(2, 0x80800000, ARM_MPU_RASR(1, ARM_MPU_AP_FULL, 1, 1, 0, 0, 0, ARM_MPU_REGION_SIZE_8MB));
 
-    /*
-     * OCRAM Setting
-     * For POC v1, enable for instruction execution, not sharable, cacheable
-     */
-    ARM_MPU_SetRegionEx(4, 0x20200000U, ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_512MB));
 
     /* Enable MPU */
     ARM_MPU_Enable(MPU_CTRL_PRIVDEFENA_Msk);
@@ -85,9 +78,10 @@ static void BOARD_ConfigMPU(void)
 void BOARD_BootClockRUN(void)
 {
     /* Init RTC OSC clock frequency. */
-    CLOCK_SetRtcXtalFreq(32768U);
+//    CLOCK_SetRtcXtalFreq(32768U);
     /* Set XTAL 24MHz clock frequency. */
     CLOCK_SetXtalFreq(24000000U);
+#if 0 // Done in U-boot
     /* Setting PeriphClk2Mux and PeriphMux to provide stable clock before PLLs are initialed */
     CLOCK_SetMux(kCLOCK_PeriphClk2Mux, 1); /* Set PERIPH_CLK2 MUX to OSC */
     CLOCK_SetMux(kCLOCK_PeriphMux, 1);     /* Set PERIPH_CLK MUX to PERIPH_CLK2 */
@@ -112,7 +106,7 @@ void BOARD_BootClockRUN(void)
     CLOCK_SetDiv(kCLOCK_IpgDiv, 0x3); /* Set IPG PODF to 3, divede by 4 */
     CLOCK_SetMux(kCLOCK_PrePeriphMux, 0x3); /* Set PRE_PERIPH_CLK to PLL1, 1200M */
     CLOCK_SetMux(kCLOCK_PeriphMux, 0x0);    /* Set PERIPH_CLK MUX to PRE_PERIPH_CLK */
-
+#endif // #if 0 // Done in U-boot
     /* Power down all unused PLL */
     CLOCK_DeinitAudioPll();
     CLOCK_DeinitVideoPll();
