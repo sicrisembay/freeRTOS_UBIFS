@@ -1724,9 +1724,10 @@ void ubifs_umount(struct ubifs_info *c)
 #ifndef __UBOOT__
 	if (c->bgt)
 		kthread_stop(c->bgt);
+#endif
 
 	destroy_journal(c);
-#endif
+
 	free_wbufs(c);
 	free_orphans(c);
 	ubifs_lpt_free(c, 0);
@@ -2290,6 +2291,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 		err = PTR_ERR(root);
 		goto out_umount;
 	}
+	ubifs_iput(root);
 
 #ifndef __UBOOT__
 	sb->s_root = d_make_root(root);
@@ -2302,6 +2304,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 #endif
 
 	mutex_unlock(&c->umount_mutex);
+	ubi_close_volume(c->ubi);
 	return 0;
 
 out_umount:

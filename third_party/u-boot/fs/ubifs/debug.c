@@ -1494,6 +1494,7 @@ int ubifs_debugging_init(struct ubifs_info *c)
 }
 void ubifs_debugging_exit(struct ubifs_info *c)
 {
+	kfree(c->dbg);
 }
 int dbg_check_filesystem(struct ubifs_info *c)
 {
