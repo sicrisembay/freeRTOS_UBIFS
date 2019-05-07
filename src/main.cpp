@@ -1,7 +1,9 @@
+extern "C" {
 #include "FreeRTOS.h"
 #include "task.h"
 #include "ubifs/ubifs_zpl.h"
 #include "fsl_clock.h"
+#include "BSP_uart.h"
 
 #define BOARD_BOOTCLOCKRUN_CORE_CLOCK             600000000U  /*!< Core clock frequency: 600000000Hz */
 
@@ -143,9 +145,12 @@ int main(void)
     BOARD_ConfigMPU();
     BOARD_BootClockRUN();
 
-    /* Run the application.  This also starts the freeRTOS kernel */
-    printf("starting app\n");
+    BSP_UART_Init();
+
     UBIFS_ZPL_Init();
+
     vTaskStartScheduler();
     return 0;
 }
+
+} // extern "C"
