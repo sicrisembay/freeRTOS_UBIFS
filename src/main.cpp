@@ -1,6 +1,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "ubifs/ubifs_zpl.h"
+#include "BSP_uart.h""
 #include "fsl_clock.h"
 
 #define BOARD_BOOTCLOCKRUN_CORE_CLOCK             600000000U  /*!< Core clock frequency: 600000000Hz */
@@ -99,8 +100,9 @@ void BOARD_BootClockRUN(void)
     CLOCK_InitArmPll(&armPllConfig_BOARD_BootClockRUN);  /* Configure ARM PLL to 1200MHz */
     /* Init System PLL. */
     CLOCK_InitSysPll(&sysPllConfig_BOARD_BootClockRUN);
-
+#endif /* Done in U-boot */
     CLOCK_InitUsb1Pll(&usb1PllConfig_BOARD_BootClockRUN); /* Configure USB1 PLL to 480M */
+#if 0 // Done in U-boot
     CLOCK_SetDiv(kCLOCK_ArmDiv, 0x1); /* Set ARM PODF to 1, divide by 2 */
     CLOCK_SetDiv(kCLOCK_AhbDiv, 0x0); /* Set AHB PODF to 0, divide by 1 */
     CLOCK_SetDiv(kCLOCK_IpgDiv, 0x3); /* Set IPG PODF to 3, divede by 4 */
@@ -142,6 +144,8 @@ int main(void)
 {
     BOARD_ConfigMPU();
     BOARD_BootClockRUN();
+
+    BSP_UART_Init();
 
     /* Run the application.  This also starts the freeRTOS kernel */
     printf("starting app\n");

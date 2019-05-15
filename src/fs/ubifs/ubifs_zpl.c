@@ -21,6 +21,7 @@
 #include "ubiFsConfig.h"
 #include "ubi_uboot.h"
 #include "jffs2/load_kernel.h"
+#include "BSP_uart.h"
 
 //*****************************************************************************
 // Private definitions.
@@ -28,7 +29,7 @@
 #define ENABLE_MTD_READ_TEST            (0)
 #define ENABLE_MTD_PAGE_TEST            (0)
 #define ENABLE_UBIFS_LOAD_TEST          (1)
-#define configTASK_STACK_UBI_FS         (4096)
+#define configTASK_STACK_UBI_FS         (16384)
 #define configTASK_PRIORITY_UBI_FS      (tskIDLE_PRIORITY + 1)
 
 //*****************************************************************************
@@ -77,8 +78,6 @@ static void _UbiFs_Task(void *pxParam);
 //*****************************************************************************
 void UBIFS_ZPL_Init(void)
 {
-    uint32_t idx = 0;
-
     /* Initialize NAND chip */
     nand_init();
     /* Initialize MTD partitions */
@@ -100,80 +99,6 @@ void UBIFS_ZPL_Init(void)
         }
     }
 
-    for(idx = 0; idx < 10; idx++) {
-        /* Mount UBIFS volume */
-        if(bUbiFsInited == true) {
-            if(!uboot_ubifs_mount(VOLUME_NAME_DEFAULT)) {
-                bUbiFsMounted = true;
-            }
-        }
-
-#if(ENABLE_UBIFS_LOAD_TEST == 1)
-        if(bUbiFsMounted == true) {
-            char *filename = "/firmware/project_tres.bin";
-            char filename2[256] = "/test";
-            char dirname[256] = "/test_dir";
-            char fileContent[1024*1024];
-            char fileContent2[1024*1024];
-            loff_t actread, off;
-            int i, j;
-
-            for (i = 0; i < 10; i++) {
-                snprintf(dirname, sizeof(dirname), "/test_dir%02i", i);
-                ubifs_mkdir(dirname);
-
-                for (j = 0; j < 10; j++) {
-                    snprintf(filename2, sizeof(filename2), "%s/file%02i", dirname, j);
-                    memset(fileContent, 0x0, sizeof(fileContent));
-                    off = 4096*j;
-                    memset(&fileContent[0] + off, 'j', 10*(j + 1));
-                    printf("writing %i bytes to %s at offset 0x%08x\n", 10*(j + 1), filename2, off);
-                    if(ubifs_write(filename2, (void *)(&fileContent[0] + off), (loff_t)off, (loff_t)10*(j + 1), (loff_t*)&actread)) {
-                        printf("write error\n");
-                    }
-                }
-            }
-            printf("ls /\n");
-            ubifs_ls("/");
-            for (i = 0; i < 10; i++) {
-                snprintf(dirname, sizeof(dirname), "/test_dir%02i", i);
-                printf("%s\n", dirname);
-                ubifs_ls(dirname);
-
-                for (j = 0; j < 10; j++) {
-                    snprintf(filename2, sizeof(filename2), "%s/file%02i", dirname, j);
-                    memset(fileContent, 0x0, sizeof(fileContent));
-                    off = 4096*j;
-                    memset(&fileContent[0] + off, 'j', 10*(j + 1));
-                    memset(fileContent2, 0x0, sizeof(fileContent2));
-                    if(ubifs_read(filename2, (void *)(&fileContent2[0]), (loff_t)0, (loff_t)off + 10*(j+1), (loff_t*)&actread)) {
-                        printf("%s read error\n", filename2);
-                    }
-                    if (memcmp(fileContent2, fileContent, off + 10*(j + 1))) {
-                        printf("%s content error\n", filename2);
-                    }
-        			if (ubifs_unlink(filename2)) {
-        				printf("%s unlink error\n", filename2);
-        			}
-                }
-        		printf("%s\n", dirname);
-        		ubifs_ls(dirname);
-        		if (ubifs_rmdir(dirname)) {
-        			printf("%s rmdir error\n", dirname);
-        		}
-            }
-        	printf("ls /\n");
-        	ubifs_ls("/");
-            uboot_ubifs_umount();
-            bUbiFsMounted = false;
-        } else {
-            printf("UBI volume not mounted!");
-        }
-#endif /* (ENABLE_UBIFS_LOAD_TEST == 1) */
-    }
-
-    ubi_exit();
-
     /* Create Gatekeeper Tasks */
     if(NULL == xTaskHandleUbiFs) {
         xTaskHandleUbiFs = xTaskCreateStatic(
@@ -190,11 +115,88 @@ void UBIFS_ZPL_Init(void)
 //*****************************************************************************
 // Private function implementations.
 //*****************************************************************************
+static char *filename = "/firmware/project_tres.bin";
+static char filename2[256] = "/test";
+static char dirname[256] = "/test_dir";
+static char fileContent[1024*1024];
+static char fileContent2[1024*1024];
 
 static void _UbiFs_Task(void *pxParam)
 {
+    uint32_t idx = 0;
+    loff_t actread, off;
+    int i, j;
+
     while(1) {
-        vTaskDelay(10);
+        for(idx = 0; idx < 10; idx++) {
+            /* Mount UBIFS volume */
+            if(bUbiFsInited == true) {
+                if(!uboot_ubifs_mount(VOLUME_NAME_DEFAULT)) {
+                    bUbiFsMounted = true;
+                }
+            }
+
+#if(ENABLE_UBIFS_LOAD_TEST == 1)
+            if(bUbiFsMounted == true) {
+                for (i = 0; i < 10; i++) {
+                    snprintf(dirname, sizeof(dirname), "/test_dir%02i", i);
+//                    BSP_UART_Send(BSP_UART_ID_0, dirname, strlen(dirname));
+                    ubifs_mkdir(dirname);
+
+                    for (j = 0; j < 10; j++) {
+                        snprintf(filename2, sizeof(filename2), "%s/file%02i", dirname, j);
+                        memset(fileContent, 0x0, sizeof(fileContent));
+                        off = 4096*j;
+                        memset(&fileContent[0] + off, 'j', 10*(j + 1));
+                        printf("writing %i bytes to %s at offset 0x%08x\n", 10*(j + 1), filename2, off);
+                        if(ubifs_write(filename2, (void *)(&fileContent[0] + off), (loff_t)off, (loff_t)10*(j + 1), (loff_t*)&actread)) {
+                            printf("write error\n");
+                        }
+                    }
+                    vTaskDelay(2);
+                }
+                printf("ls /\n");
+                ubifs_ls("/");
+                for (i = 0; i < 10; i++) {
+                    snprintf(dirname, sizeof(dirname), "/test_dir%02i", i);
+                    printf("%s\n", dirname);
+                    ubifs_ls(dirname);
+
+                    for (j = 0; j < 10; j++) {
+                        snprintf(filename2, sizeof(filename2), "%s/file%02i", dirname, j);
+                        memset(fileContent, 0x0, sizeof(fileContent));
+                        off = 4096*j;
+                        memset(&fileContent[0] + off, 'j', 10*(j + 1));
+                        memset(fileContent2, 0x0, sizeof(fileContent2));
+                        if(ubifs_read(filename2, (void *)(&fileContent2[0]), (loff_t)0, (loff_t)off + 10*(j+1), (loff_t*)&actread)) {
+                            printf("%s read error\n", filename2);
+                        }
+                        if (memcmp(fileContent2, fileContent, off + 10*(j + 1))) {
+                            printf("%s content error\n", filename2);
+                        }
+                        if (ubifs_unlink(filename2)) {
+                            printf("%s unlink error\n", filename2);
+                        }
+                    }
+                    printf("%s\n", dirname);
+                    ubifs_ls(dirname);
+                    if (ubifs_rmdir(dirname)) {
+                        printf("%s rmdir error\n", dirname);
+                    }
+                }
+                printf("ls /\n");
+                ubifs_ls("/");
+                uboot_ubifs_umount();
+                bUbiFsMounted = false;
+            } else {
+                printf("UBI volume not mounted!");
+            }
+#endif /* (ENABLE_UBIFS_LOAD_TEST == 1) */
+        }
+
+        ubi_exit();
+
+        vTaskSuspend(NULL);
     }
 }
 
