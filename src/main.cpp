@@ -147,8 +147,6 @@ int main(void)
 
     BSP_UART_Init();
 
-    /* Run the application.  This also starts the freeRTOS kernel */
-    printf("starting app\n");
     UBIFS_ZPL_Init();
     vTaskStartScheduler();
     return 0;

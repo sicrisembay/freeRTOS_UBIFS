@@ -44,6 +44,7 @@ static TaskHandle_t xTaskHandleUbiFs = NULL;
 static bool bUbiFsInited = false;
 static bool bUbiFsMounted = false;
 
+char logData[MAX_LOG_LEN+1];
 
 //*****************************************************************************
 // Public / Internal member external declarations.

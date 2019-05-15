@@ -1166,10 +1166,11 @@ static struct inode *ubifs_create(struct inode *dir, struct qstr *nm, umode_t mo
 		goto out_inode;
 
 	mutex_lock(&dir_ui->ui_mutex);
+	dir->__i_nlink++;
 	dir->i_size += sz_change;
 	dir_ui->ui_size = dir->i_size;
 	dir->i_mtime = dir->i_ctime = inode->i_ctime;
-	inode->i_size = 1024;
+	inode->i_size = 0;
 	err = ubifs_jnl_update(c, dir, nm, inode, 0, 0);
 	if (err)
 		goto out_cancel;
@@ -1184,6 +1185,7 @@ static struct inode *ubifs_create(struct inode *dir, struct qstr *nm, umode_t mo
 	return inode;
 
 out_cancel:
+	dir->__i_nlink--;
 	dir->i_size -= sz_change;
 	dir_ui->ui_size = dir->i_size;
 	mutex_unlock(&dir_ui->ui_mutex);
@@ -1356,6 +1358,7 @@ int ubifs_rmdir(const char *filename)
 	dir->i_size -= sz_change;
 	dir_ui->ui_size = dir->i_size;
 	dir->i_mtime = dir->i_ctime = inode->i_ctime;
+	dir->__i_nlink--;
 	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0);
 	if (err)
 		goto out_cancel;
@@ -1631,6 +1634,7 @@ int ubifs_unlink(const char *filename)
 	dir->i_size -= sz_change;
 	dir_ui->ui_size = dir->i_size;
 	dir->i_mtime = dir->i_ctime = inode->i_ctime;
+	dir->__i_nlink--;
 	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0);
 	if (err)
 		goto out_cancel;
@@ -1652,6 +1656,7 @@ int ubifs_unlink(const char *filename)
 out_cancel:
 	dir->i_size += sz_change;
 	dir_ui->ui_size = dir->i_size;
+	dir->__i_nlink++;
 	set_nlink(inode, saved_nlink);
 	if (budgeted)
 		ubifs_release_budget(c, &req);
