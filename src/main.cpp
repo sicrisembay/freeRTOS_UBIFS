@@ -3,6 +3,7 @@
 #include "ubifs/ubifs_zpl.h"
 #include "BSP_uart.h""
 #include "fsl_clock.h"
+#include "stdio.h"
 
 #define BOARD_BOOTCLOCKRUN_CORE_CLOCK             600000000U  /*!< Core clock frequency: 600000000Hz */
 
@@ -128,8 +129,6 @@ void SystemInitHook (void) {
         DisableIRQ((IRQn_Type)i);
     }
 }
-
-#include "stdio.h"
 
 //*****************************************************************************
 //!
