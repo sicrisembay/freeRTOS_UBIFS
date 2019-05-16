@@ -79,34 +79,9 @@ static void _UbiFs_Task(void *pxParam);
 //*****************************************************************************
 void UBIFS_ZPL_Init(void)
 {
-    /* Initialize NAND chip */
-    debug("Info: Initializing NAND flash...");
-    nand_init();
-    /* Initialize MTD partitions */
-    debug("Info: Initializing MTD...");
-    mtdparts_init();
-#if(ENABLE_MTD_READ_TEST == 1)
-    mtd_readtest_init();
-#endif
-
-#if(ENABLE_MTD_PAGE_TEST == 1)
-    mtd_pagetest_init();
-#endif
-    /* Initialize the default UBI partition */
-    debug("Info: Initializing UBI partition...");
-    ubi_part(PARTITION_NAME_DEFAULT, NULL);
-
-    /* Initialize UBIFS */
-    if(bUbiFsInited != true) {
-        debug("Info: Initializing UBIFS...");
-        if(!ubifs_init()) {
-            bUbiFsInited = true;
-        }
-    }
-
     /* Create Gatekeeper Tasks */
     if(NULL == xTaskHandleUbiFs) {
-        debug("Info: Creating UBIFS Test Task...");
+        debug("Info: Creating UBIFS Test Task...\n");
         xTaskHandleUbiFs = xTaskCreateStatic(
                 _UbiFs_Task,
                 "UBIFS",
@@ -133,6 +108,31 @@ static void _UbiFs_Task(void *pxParam)
     loff_t actread, off;
     int i, j;
 
+    /* Initialize NAND chip */
+    debug("Info: Initializing NAND flash...\n");
+    nand_init();
+    /* Initialize MTD partitions */
+    debug("Info: Initializing MTD...\n");
+    mtdparts_init();
+#if(ENABLE_MTD_READ_TEST == 1)
+    mtd_readtest_init();
+#endif
+
+#if(ENABLE_MTD_PAGE_TEST == 1)
+    mtd_pagetest_init();
+#endif
+    /* Initialize the default UBI partition */
+    debug("Info: Initializing UBI partition...\n");
+    ubi_part(PARTITION_NAME_DEFAULT, NULL);
+
+    /* Initialize UBIFS */
+    if(bUbiFsInited != true) {
+        debug("Info: Initializing UBIFS...\n");
+        if(!ubifs_init()) {
+            bUbiFsInited = true;
+        }
+    }
+
     while(1) {
         debug("Free Heap before mount: %d, Min. Heap: %d\n", xPortGetFreeHeapSize(), xPortGetMinimumEverFreeHeapSize());
 
@@ -148,24 +148,24 @@ static void _UbiFs_Task(void *pxParam)
         if(bUbiFsMounted == true) {
             if(ubifs_read("/iterationCount", (void *)(&idx), (loff_t)0, (loff_t)4, (loff_t*)&actread)) {
                 idx = 0;
-                debug("Info: First test iteration.");
+                debug("Info: First test iteration.\n");
             }
             idx++;
-            debug("Test Iteration %d ...", idx);
+            debug("Test Iteration %d ...\n", idx);
             ubifs_ls("/");
-            debug("Info: Write File/Directory Test");
+            debug("Info: Write File/Directory Test\n");
             for (i = 0; i < 10; i++) {
                 snprintf(dirname, sizeof(dirname), "/test_dir%02i", i);
                 ubifs_mkdir(dirname);
 
-                debug("Info: Writing files in %s", dirname);
+                debug("Info: Writing files in %s\n", dirname);
                 for (j = 0; j < 10; j++) {
                     snprintf(filename2, sizeof(filename2), "%s/file%02i", dirname, j);
                     memset(fileContent, 0x0, sizeof(fileContent));
                     off = 4096*j;
                     memset(&fileContent[0] + off, 'j', 10*(j + 1));
                     if(ubifs_write(filename2, (void *)(&fileContent[0] + off), (loff_t)off, (loff_t)10*(j + 1), (loff_t*)&actread)) {
-                        debug("ERROR: ubifs_write-iteration:%d, filename:%s count:%d offset:0x08X\n", idx, filename2, 10*(j+1), (uint32_t)off);
+                        debug("ERROR: ubifs_write-iteration:%d, filename:%s count:%d offset:0x%08X\n", idx, filename2, 10*(j+1), (uint32_t)off);
                     }
                 }
             }
@@ -174,7 +174,7 @@ static void _UbiFs_Task(void *pxParam)
 
             for (i = 0; i < 10; i++) {
                 snprintf(dirname, sizeof(dirname), "/test_dir%02i", i);
-                debug("Info: Verifying Files in %s ...", dirname);
+                debug("Info: Verifying Files in %s ...\n", dirname);
                 for (j = 0; j < 10; j++) {
                     snprintf(filename2, sizeof(filename2), "%s/file%02i", dirname, j);
                     memset(fileContent, 0x0, sizeof(fileContent));
@@ -191,8 +191,8 @@ static void _UbiFs_Task(void *pxParam)
                         debug("EROOR: ubifs_unlink-iteration:%d, filename:%s\n", filename2);
                     }
                 }
-                debug("Done.");
-                debug("Deleting %s... ", dirname);
+                debug("Done.\n");
+                debug("Deleting %s...\n", dirname);
                 if (ubifs_rmdir(dirname)) {
                     debug("ERROR: ubifs_rmdir-iteration:%d, dir: %s\n", idx, dirname);
                 }
@@ -200,15 +200,15 @@ static void _UbiFs_Task(void *pxParam)
                 ubifs_ls("/");
             }
             if(ubifs_write("/iterationCount", (void *)(&idx), (loff_t)0, (loff_t)4, (loff_t*)&actread)) {
-                debug("ERROR: ubifs_write-iteration:%d, file:iteration", idx);
+                debug("ERROR: ubifs_write-iteration:%d, file:iteration\n", idx);
             }
-            debug("Info: Unmounting UBIFS...");
+            debug("Info: Unmounting UBIFS...\n");
             uboot_ubifs_umount();
             bUbiFsMounted = false;
             debug("Free Heap after umount: %d, Min. Heap: %d\n", xPortGetFreeHeapSize(), xPortGetMinimumEverFreeHeapSize());
             debug(".... done Iteration %d\n\n\n", idx);
         } else {
-            debug("ERROR: UBI volume not mounted!");
+            debug("ERROR: UBI volume not mounted!\n");
         }
     }
     ubi_exit();

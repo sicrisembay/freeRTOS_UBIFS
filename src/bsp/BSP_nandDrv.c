@@ -19,6 +19,7 @@
 #include "BSP_nandDrv.h"
 #include "ubiFsConfig.h"
 #include <cr_section_macros.h>
+#include "zplCompat.h"
 
 //*****************************************************************************
 // Private definitions.
@@ -408,7 +409,7 @@ uint8_t BSP_NAND_Read_Status(void)
     status = SEMC_SendIPCommand(NAND_SEMC, kSEMC_MemType_NAND, slaveAddress, commandCode, 0, &readoutData);
     if (status != kStatus_Success)
     {
-        printf("fsl_nand, NAND_Read_Status, SEMC_SendIPCommand Failed!\n");
+        debug("fsl_nand, NAND_Read_Status, SEMC_SendIPCommand Failed!\n");
     }
 
     return((uint8_t)(readoutData & 0xFF));
@@ -464,7 +465,7 @@ void BSP_NAND_ReadID(uint8_t *buf)
     status = SEMC_SendIPCommand(NAND_SEMC, kSEMC_MemType_NAND, slaveAddress, commandCode, 0, &dummyData);
 
     if (status != kStatus_Success) {
-        printf("fsl_nand, NAND_ReadID, SEMC_SendIPCommand Failed!\n");
+        debug("fsl_nand, NAND_ReadID, SEMC_SendIPCommand Failed!\n");
         return;
     }
 
@@ -481,7 +482,7 @@ void BSP_NAND_ReadID(uint8_t *buf)
     debug("\n");
 #endif
     if (status != kStatus_Success) {
-        printf("fsl_nand, NAND_ReadID, SEMC_SendIPCommand Failed!\n");
+        debug("fsl_nand, NAND_ReadID, SEMC_SendIPCommand Failed!\n");
         return;
     }
 }
@@ -505,7 +506,7 @@ void BSP_NAND_ReadPageDataOOB(uint32_t pageAddress, uint8_t *buf)
     slaveAddress = CONFIG_SYS_NAND_BASE + (pageAddress * CONFIG_SYS_NAND_PAGE_SIZE);
     status = SEMC_SendIPCommand(NAND_SEMC, kSEMC_MemType_NAND, slaveAddress, commandCode, 0, &dummyData);
     if(status != kStatus_Success) {
-        printf("fsl_nand, NAND_ReadPageDataOOB, SEMC_SendIPCommand Failed!\n");
+        debug("fsl_nand, NAND_ReadPageDataOOB, SEMC_SendIPCommand Failed!\n");
         return;
     }
     commandCode = SEMC_BuildNandIPCommand(
@@ -514,14 +515,14 @@ void BSP_NAND_ReadPageDataOOB(uint32_t pageAddress, uint8_t *buf)
                     kSEMC_NANDCM_CommandHold);
     status = SEMC_SendIPCommand(NAND_SEMC, kSEMC_MemType_NAND, slaveAddress, commandCode, 0, &dummyData);
     if(status != kStatus_Success) {
-        printf("fsl_nand, NAND_ReadPageDataOOB, SEMC_SendIPCommand Failed!\n");
+        debug("fsl_nand, NAND_ReadPageDataOOB, SEMC_SendIPCommand Failed!\n");
         return;
     }
 
     while(BSP_NAND_Ready() != true);
     status = SEMC_IPCommandNandRead(NAND_SEMC, slaveAddress, buf, CONFIG_SYS_NAND_PAGE_SIZE + CONFIG_SYS_NAND_OOBSIZE);
     if(status != kStatus_Success) {
-        printf("fsl_nand, NAND_ReadPageDataOOB, SEMC_SendIPCommand Failed!\n");
+        debug("fsl_nand, NAND_ReadPageDataOOB, SEMC_SendIPCommand Failed!\n");
         return;
     }
 }
@@ -553,7 +554,7 @@ void BSP_NAND_Erase(uint8_t command, int32_t page_addr)
     }
     status = SEMC_SendIPCommand(NAND_SEMC, kSEMC_MemType_NAND, slaveAddress, commandCode, 0, &dummyData);
     if(status != kStatus_Success) {
-        printf("fsl_nand, NAND_Erase, SEMC_SendIPCommand Failed! (commandCode:%04X)\n", commandCode);
+        debug("fsl_nand, NAND_Erase, SEMC_SendIPCommand Failed! (commandCode:%04X)\n", commandCode);
         return;
     }
     while(BSP_NAND_Ready() != true);
@@ -568,7 +569,7 @@ void BSP_NAND_ProgramPage(int32_t page_addr, int32_t column, uint32_t len, uint8
     status_t status = kStatus_Success;
 
     if((page_addr < 0) || (column < 0) || (buf == (uint8_t *)0)) {
-        printf("fsl_nand, NAND_ProgramPage, invalid argument page:%d, col:%d, buf:%X\n", page_addr, column, buf);
+        debug("fsl_nand, NAND_ProgramPage, invalid argument page:%d, col:%d, buf:%X\n", page_addr, column, buf);
         return;
     }
 
@@ -581,7 +582,7 @@ void BSP_NAND_ProgramPage(int32_t page_addr, int32_t column, uint32_t len, uint8
     slaveAddress = (page_addr * CONFIG_SYS_NAND_PAGE_SIZE) + CONFIG_SYS_NAND_BASE;
     status = SEMC_SendIPCommand(NAND_SEMC, kSEMC_MemType_NAND, slaveAddress, commandCode, 0, &dummyData);
     if(status != kStatus_Success) {
-        printf("fsl_nand, NAND_ProgramPage, SEMC_SendIPCommand Failed! (commandCode:%04X)\n", commandCode);
+        debug("fsl_nand, NAND_ProgramPage, SEMC_SendIPCommand Failed! (commandCode:%04X)\n", commandCode);
         return;
     }
 
@@ -594,7 +595,7 @@ void BSP_NAND_ProgramPage(int32_t page_addr, int32_t column, uint32_t len, uint8
     status = SEMC_SendIPCommand(NAND_SEMC, kSEMC_MemType_NAND, slaveAddress, commandCode, 0, &dummyData);
 
     if(status != kStatus_Success) {
-        printf("fsl_nand, NAND_ProgramPage, SEMC_SendIPCommand Failed! (commandCode:%04X)\n", commandCode);
+        debug("fsl_nand, NAND_ProgramPage, SEMC_SendIPCommand Failed! (commandCode:%04X)\n", commandCode);
         return;
     }
 

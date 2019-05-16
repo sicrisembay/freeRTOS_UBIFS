@@ -224,7 +224,7 @@ extern char logData[MAX_LOG_LEN+1];
             snprintf(logData, MAX_LOG_LEN, fmt, ##args); \
             logData[MAX_LOG_LEN] = '\0'; \
             BSP_UART_Send(0, logData, strlen(logData)); \
-            BSP_UART_Send(0, "\n\r", 2); \
+            BSP_UART_Send(0, "\r", 1); \
         } \
     } while (0)
 #endif

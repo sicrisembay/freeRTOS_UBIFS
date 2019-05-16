@@ -34,7 +34,7 @@ static int fs_type = FS_TYPE_ANY;
 static inline int fs_probe_unsupported(struct blk_desc *fs_dev_desc,
 				      disk_partition_t *fs_partition)
 {
-	printf("** Unrecognized filesystem type **\n");
+	debug("** Unrecognized filesystem type **\n");
 	return -1;
 }
 
@@ -315,7 +315,7 @@ int fs_read(const char *filename, ulong addr, loff_t offset, loff_t len,
 
 	/* If we requested a specific number of bytes, check we got it */
 	if (ret == 0 && len && *actread != len)
-		printf("** %s shorter than offset + len **\n", filename);
+		debug("** %s shorter than offset + len **\n", filename);
 	fs_close();
 
 	return ret;
@@ -333,7 +333,7 @@ int fs_write(const char *filename, ulong addr, loff_t offset, loff_t len,
 	unmap_sysmem(buf);
 
 	if (ret < 0 && len != *actwrite) {
-		printf("** Unable to write file %s **\n", filename);
+		debug("** Unable to write file %s **\n", filename);
 		ret = -1;
 	}
 	fs_close();
@@ -416,7 +416,7 @@ int do_load(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	if (ret < 0)
 		return 1;
 
-	printf("%lu bytes read in %lu ms", len_read, time);
+	debug("%lu bytes read in %lu ms", len_read, time);
 	if (time > 0) {
 		puts(" (");
 		print_size(div_u64(len_read, time) * 1000, "/s");
@@ -487,7 +487,7 @@ int do_save(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	if (ret < 0)
 		return 1;
 
-	printf("%lu bytes written in %lu ms", len, time);
+	debug("%lu bytes written in %lu ms", len, time);
 	if (time > 0) {
 		puts(" (");
 		print_size(div_u64(len, time) * 1000, "/s");
@@ -518,7 +518,7 @@ int do_fs_uuid(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[],
 	if (argc == 4)
 		setenv(argv[3], uuid);
 	else
-		printf("%s\n", uuid);
+		debug("%s\n", uuid);
 
 	return CMD_RET_SUCCESS;
 }
@@ -538,7 +538,7 @@ int do_fs_type(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	if (argc == 4)
 		setenv(argv[3], info->name);
 	else
-		printf("%s\n", info->name);
+		debug("%s\n", info->name);
 
 	return CMD_RET_SUCCESS;
 }
