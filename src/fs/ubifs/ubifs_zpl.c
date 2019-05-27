@@ -143,6 +143,7 @@ static void _UbiFs_Task(void *pxParam)
                 bUbiFsMounted = true;
             } else {
                 debug("ERROR: ubifs_mount failed!\n");
+                vTaskSuspend(NULL);
             }
         }
         if(bUbiFsMounted == true) {
@@ -166,6 +167,7 @@ static void _UbiFs_Task(void *pxParam)
                     memset(&fileContent[0] + off, 'j', 10*(j + 1));
                     if(ubifs_write(filename2, (void *)(&fileContent[0] + off), (loff_t)off, (loff_t)10*(j + 1), (loff_t*)&actread)) {
                         debug("ERROR: ubifs_write-iteration:%d, filename:%s count:%d offset:0x%08X\n", idx, filename2, 10*(j+1), (uint32_t)off);
+                        vTaskSuspend(NULL);
                     }
                 }
             }
@@ -183,24 +185,28 @@ static void _UbiFs_Task(void *pxParam)
                     memset(fileContent2, 0x0, sizeof(fileContent2));
                     if(ubifs_read(filename2, (void *)(&fileContent2[0]), (loff_t)0, (loff_t)off + 10*(j+1), (loff_t*)&actread)) {
                         debug("ERROR: ubifs_read-iteration:%d, filename:%s\n", idx, filename2);
+                        vTaskSuspend(NULL);
                     }
                     if (memcmp(fileContent2, fileContent, off + 10*(j + 1))) {
                         debug("ERROR: content error-iteration:%d, filename:%s\n", idx, filename2);
                     }
                     if (ubifs_unlink(filename2)) {
                         debug("EROOR: ubifs_unlink-iteration:%d, filename:%s\n", filename2);
+                        vTaskSuspend(NULL);
                     }
                 }
                 debug("Done.\n");
                 debug("Deleting %s...\n", dirname);
                 if (ubifs_rmdir(dirname)) {
                     debug("ERROR: ubifs_rmdir-iteration:%d, dir: %s\n", idx, dirname);
+                    vTaskSuspend(NULL);
                 }
 
                 ubifs_ls("/");
             }
             if(ubifs_write("/iterationCount", (void *)(&idx), (loff_t)0, (loff_t)4, (loff_t*)&actread)) {
                 debug("ERROR: ubifs_write-iteration:%d, file:iteration\n", idx);
+                vTaskSuspend(NULL);
             }
             debug("Info: Unmounting UBIFS...\n");
             uboot_ubifs_umount();
