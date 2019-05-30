@@ -1358,6 +1358,7 @@ int ubifs_rmdir(const char *filename)
 	dir->i_size -= sz_change;
 	dir_ui->ui_size = dir->i_size;
 	dir->i_mtime = dir->i_ctime = inode->i_ctime;
+	dir->__i_nlink--;
 	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0);
 	if (err)
 		goto out_cancel;
