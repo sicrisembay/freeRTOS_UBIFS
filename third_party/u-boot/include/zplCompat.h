@@ -71,10 +71,11 @@ typedef unsigned long long uint64_t;
 #if !defined(__TEST_APP__)
 typedef long long int __quad_t;
 typedef unsigned long long int __u_quad_t;
-//typedef __u_quad_t dev_t;
-//typedef unsigned int uid_t;
-//typedef unsigned int gid_t;
+typedef __u_quad_t dev_t;
+typedef unsigned int uid_t;
+typedef unsigned int gid_t;
 typedef __quad_t loff_t;
+typedef unsigned long ino_t;
 #endif
 
 #define BITS_PER_LONG 32

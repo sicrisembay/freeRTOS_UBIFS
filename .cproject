@@ -113,6 +113,10 @@
 									<listOptionValue builtIn="false" value="__UBOOT__"/>
 									<listOptionValue builtIn="false" value="__LITTLE_ENDIAN"/>
 									<listOptionValue builtIn="false" value="MXRT105X_NAND_DEBUG=1"/>
+									<listOptionValue builtIn="false" value="_UID_T_DECLARED"/>
+									<listOptionValue builtIn="false" value="_GID_T_DECLARED"/>
+									<listOptionValue builtIn="false" value="_INO_T_DECLARED"/>
+									<listOptionValue builtIn="false" value="_DEV_T_DECLARED"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.undef.symbol.1709605085" name="Undefined symbols (-U)" superClass="gnu.c.compiler.option.preprocessor.undef.symbol" useByScannerDiscovery="false"/>
 								<option id="gnu.c.compiler.option.include.paths.914704072" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
@@ -294,7 +298,7 @@
 								<inputType id="com.crt.advproject.compiler.cpp.input.108714725" superClass="com.crt.advproject.compiler.cpp.input"/>
 							</tool>
 							<tool id="com.crt.advproject.gcc.exe.debug.785959528" name="MCU C Compiler" superClass="com.crt.advproject.gcc.exe.debug.989735565">
-								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1684987069" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.1684987069" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="__NEWLIB__"/>
 									<listOptionValue builtIn="false" value="XIP_BOOT_HEADER_ENABLE=1"/>
 									<listOptionValue builtIn="false" value="XIP_BOOT_HEADER_DCD_ENABLE=1"/>
@@ -312,6 +316,10 @@
 									<listOptionValue builtIn="false" value="__UBOOT__"/>
 									<listOptionValue builtIn="false" value="__LITTLE_ENDIAN"/>
 									<listOptionValue builtIn="false" value="MXRT105X_NAND_DEBUG=1"/>
+									<listOptionValue builtIn="false" value="_UID_T_DECLARED"/>
+									<listOptionValue builtIn="false" value="_GID_T_DECLARED"/>
+									<listOptionValue builtIn="false" value="_INO_T_DECLARED"/>
+									<listOptionValue builtIn="false" value="_DEV_T_DECLARED"/>
 								</option>
 								<inputType id="com.crt.advproject.compiler.input.405313875" superClass="com.crt.advproject.compiler.input"/>
 							</tool>
@@ -331,7 +339,7 @@
 								<inputType id="com.crt.advproject.compiler.cpp.input.1916292413" superClass="com.crt.advproject.compiler.cpp.input"/>
 							</tool>
 							<tool id="com.crt.advproject.gcc.exe.debug.1511264923" name="MCU C Compiler" superClass="com.crt.advproject.gcc.exe.debug.989735565">
-								<option id="gnu.c.compiler.option.preprocessor.def.symbols.506497512" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" valueType="definedSymbols">
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.506497512" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="__NEWLIB__"/>
 									<listOptionValue builtIn="false" value="XIP_BOOT_HEADER_ENABLE=1"/>
 									<listOptionValue builtIn="false" value="XIP_BOOT_HEADER_DCD_ENABLE=1"/>
@@ -348,6 +356,10 @@
 									<listOptionValue builtIn="false" value="__UBOOT__"/>
 									<listOptionValue builtIn="false" value="__LITTLE_ENDIAN"/>
 									<listOptionValue builtIn="false" value="MXRT105X_NAND_DEBUG=1"/>
+									<listOptionValue builtIn="false" value="_UID_T_DECLARED"/>
+									<listOptionValue builtIn="false" value="_GID_T_DECLARED"/>
+									<listOptionValue builtIn="false" value="_INO_T_DECLARED"/>
+									<listOptionValue builtIn="false" value="_DEV_T_DECLARED"/>
 								</option>
 								<inputType id="com.crt.advproject.compiler.input.1913431178" superClass="com.crt.advproject.compiler.input"/>
 							</tool>
