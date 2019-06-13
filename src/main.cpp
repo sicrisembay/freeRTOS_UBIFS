@@ -146,7 +146,7 @@ int main(void)
 
     BSP_UART_Init();
 
-    UBIFS_ZPL_Init();
+    UBI_ZPL_Init();
     vTaskStartScheduler();
     return 0;
 }

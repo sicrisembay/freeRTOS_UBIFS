@@ -18,31 +18,65 @@
 #include "nand.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "queue.h"
+#include "semphr.h"
 #include "ubiFsConfig.h"
 #include "ubi_uboot.h"
 #include "jffs2/load_kernel.h"
 #include "BSP_uart.h"
+#include "test/ubifs_zpl_test.h"
 
 //*****************************************************************************
 // Private definitions.
 //*****************************************************************************
 #define ENABLE_MTD_READ_TEST            (0)
 #define ENABLE_MTD_PAGE_TEST            (0)
-#define ENABLE_UBIFS_LOAD_TEST          (1)
-#define configTASK_STACK_UBI_FS         (16384)
-#define configTASK_PRIORITY_UBI_FS      (tskIDLE_PRIORITY + 1)
+#define ENABLE_UBIFS_LOAD_TEST          (0)
+#define ENABLE_DEBUG_PRINTF             (1)
+#define configTASK_STACK_UBI_FS         (32768)
+
+typedef enum {
+    UBI_ZPL_FILE_EXIST = 0,
+    UBI_ZPL_FILE_WRITE,
+    UBI_ZPL_FILE_READ,
+    UBI_ZPL_FILE_GET_SIZE,
+    UBI_ZPL_FILE_REMOVE,
+    UBI_ZPL_DIR_MAKE,
+    UBI_ZPL_DIR_REMOVE,
+} ubi_zpl_ops_t;
+
+typedef struct {
+    ubi_zpl_ops_t op;
+    void * param1;
+    void * param2;
+    void * param3;
+    uint32_t param4;
+    uint32_t param5;
+    ubi_zpl_cb_fcn cb;
+} ubi_zpl_req_t;
+
+#define UBI_Q_LEN                       (10)
+#define UBI_Q_ITEM_SZ                   (sizeof(ubi_zpl_req_t))
+
+#define ubifs_zpl_debug(fmt, args...)    debug_cond(ENABLE_DEBUG_PRINTF, fmt, ##args)
 
 //*****************************************************************************
 // Private member declarations.
 //*****************************************************************************
 
-/* UART Instance0 Gatekeeper Task */
+/* Gatekeeper Task */
 static StaticTask_t xTaskUbiFs;
 static StackType_t xTaskStackUbiFs[configTASK_STACK_UBI_FS];
 static TaskHandle_t xTaskHandleUbiFs = NULL;
+/* Gatekeeper Transaction Queue */
+static StaticQueue_t xStaticQueueUbi;
+static uint8_t ucQueueStorageUbi[UBI_Q_LEN * UBI_Q_ITEM_SZ];
+static QueueHandle_t xQueueHandleUbi = NULL;
 
+static bool bUbiPartMounted = false;
 static bool bUbiFsInited = false;
 static bool bUbiFsMounted = false;
+static bool bInitDone = false;
 
 char logData[MAX_LOG_LEN+1];
 
@@ -60,7 +94,7 @@ extern int mtd_pagetest_init(void);
 //*****************************************************************************
 // Private function prototypes.
 //*****************************************************************************
-static void _UbiFs_Task(void *pxParam);
+static void _Ubi_Task(void *pxParam);
 
 //*****************************************************************************
 // Public function implementations
@@ -77,43 +111,59 @@ static void _UbiFs_Task(void *pxParam);
 //! \return \c void
 //!
 //*****************************************************************************
-void UBIFS_ZPL_Init(void)
+UBI_ZPL_RET_T UBI_ZPL_Init(void)
 {
+    UBI_ZPL_RET_T retval = UBI_ZPL_NOERROR;
+
     /* Create Gatekeeper Tasks */
     if(NULL == xTaskHandleUbiFs) {
-        debug("Info: Creating UBIFS Test Task...\n");
+        ubifs_zpl_debug("Info: Creating UBIFS Test Task...\n");
         xTaskHandleUbiFs = xTaskCreateStatic(
-                _UbiFs_Task,
+                _Ubi_Task,
                 "UBIFS",
                 configTASK_STACK_UBI_FS,
                 (void *)0,
                 configTASK_PRIORITY_UBI_FS,
                 xTaskStackUbiFs,
                 &xTaskUbiFs);
+
+        xQueueHandleUbi = xQueueCreateStatic(
+                            UBI_Q_LEN,
+                            UBI_Q_ITEM_SZ,
+                            ucQueueStorageUbi,
+                            &xStaticQueueUbi
+                            );
     }
+
+    return (retval);
 }
 
 //*****************************************************************************
 // Private function implementations.
 //*****************************************************************************
-static char *filename = "/firmware/project_tres.bin";
-static char filename2[256] = "/test";
-static char dirname[256] = "/test_dir";
-static char fileContent[1024*1024];
-static char fileContent2[1024*1024];
-
-static void _UbiFs_Task(void *pxParam)
+static void _Ubi_Task(void *pxParam)
 {
-    uint32_t idx = 0;
-    loff_t actread, off;
-    int i, j;
+    ubi_zpl_req_t ubiZplReq;
+    int sts = 0;
+    int err = 0;
+    int opCnt = 0;
+    loff_t temp64;
+
+    bUbiPartMounted = false;
+    bUbiFsInited = false;
+    bUbiFsMounted = false;
+    bInitDone = false;
 
     /* Initialize NAND chip */
-    debug("Info: Initializing NAND flash...\n");
+    ubifs_zpl_debug("Info: Initializing NAND flash...");
     nand_init();
     /* Initialize MTD partitions */
-    debug("Info: Initializing MTD...\n");
-    mtdparts_init();
+    ubifs_zpl_debug("Info: Initializing MTD...");
+    err = mtdparts_init();
+    if(err != 0) {
+        ubifs_zpl_debug("Error: MTD init failed(Err:%d)", err);
+        vTaskSuspend(NULL);
+    }
 #if(ENABLE_MTD_READ_TEST == 1)
     mtd_readtest_init();
 #endif
@@ -122,102 +172,456 @@ static void _UbiFs_Task(void *pxParam)
     mtd_pagetest_init();
 #endif
     /* Initialize the default UBI partition */
-    debug("Info: Initializing UBI partition...\n");
-    ubi_part(PARTITION_NAME_DEFAULT, NULL);
+    ubifs_zpl_debug("Info: Initializing UBI partition...");
+    err = ubi_part(PARTITION_NAME_DEFAULT, NULL);
+    if(!err) {
+        bUbiPartMounted = true;
+    } else {
+        ubifs_zpl_debug("Error: UBI Part init failed(Err:%d)", err);
+        bUbiPartMounted = false;
+        vTaskSuspend(NULL);
+    }
 
     /* Initialize UBIFS */
-    if(bUbiFsInited != true) {
-        debug("Info: Initializing UBIFS...\n");
-        if(!ubifs_init()) {
-            bUbiFsInited = true;
+    ubifs_zpl_debug("Info: Initializing UBIFS...");
+    err = ubifs_init();
+    if(!err) {
+        bUbiFsInited = true;
+    } else {
+        bUbiFsInited = false;
+        ubifs_zpl_debug("Error: UBIFS init failed(Err:%d)", err);
+        vTaskSuspend(NULL);
+    }
+
+    if(bUbiFsInited) {
+        ubifs_zpl_debug("Info: Mounting UBIFS...");
+        err = uboot_ubifs_mount(VOLUME_NAME_DEFAULT);
+        if(!err) {
+            bUbiFsMounted = true;
+        } else {
+            bUbiFsMounted = false;
+            ubifs_zpl_debug("Error: UBIFS mount failed(Err:%d)", err);
+            vTaskSuspend(NULL);
         }
     }
 
+    bInitDone = bUbiPartMounted && bUbiFsInited && bUbiFsMounted;
+
+#if((ENABLE_UBIFS_ZPL_TEST == 1) && (ENABLE_FS_TEST == 1))
+    UBI_ZPL_FsTestInit();
+#endif /* #if((ENABLE_UBIFS_ZPL_TEST == 1) && (ENABLE_FS_TEST == 1)) */
+
     while(1) {
-        debug("Free Heap before mount: %d, Min. Heap: %d\n", xPortGetFreeHeapSize(), xPortGetMinimumEverFreeHeapSize());
-
-        /* Mount UBIFS volume */
-        if(bUbiFsInited == true) {
-            debug("Info: Mounting UBIFS...\n");
-            if(!uboot_ubifs_mount(VOLUME_NAME_DEFAULT)) {
-                bUbiFsMounted = true;
-            } else {
-                debug("ERROR: ubifs_mount failed!\n");
-                vTaskSuspend(NULL);
-            }
-        }
-        if(bUbiFsMounted == true) {
-            if(ubifs_read("/iterationCount", (void *)(&idx), (loff_t)0, (loff_t)4, (loff_t*)&actread)) {
-                idx = 0;
-                debug("Info: First test iteration.\n");
-            }
-            idx++;
-            debug("Test Iteration %d ...\n", idx);
-            ubifs_ls("/");
-            debug("Info: Write File/Directory Test\n");
-            for (i = 0; i < 10; i++) {
-                snprintf(dirname, sizeof(dirname), "/test_dir%02i", i);
-                ubifs_mkdir(dirname);
-
-                debug("Info: Writing files in %s\n", dirname);
-                for (j = 0; j < 10; j++) {
-                    snprintf(filename2, sizeof(filename2), "%s/file%02i", dirname, j);
-                    memset(fileContent, 0x0, sizeof(fileContent));
-                    off = 4096*j;
-                    memset(&fileContent[0] + off, 'j', 10*(j + 1));
-                    if(ubifs_write(filename2, (void *)(&fileContent[0] + off), (loff_t)off, (loff_t)10*(j + 1), (loff_t*)&actread)) {
-                        debug("ERROR: ubifs_write-iteration:%d, filename:%s count:%d offset:0x%08X\n", idx, filename2, 10*(j+1), (uint32_t)off);
-                        vTaskSuspend(NULL);
+        if(xQueueReceive(xQueueHandleUbi, &ubiZplReq, portMAX_DELAY)) {
+            switch(ubiZplReq.op) {
+            case UBI_ZPL_FILE_EXIST: {
+                if(bUbiFsMounted == false) {
+                    err = uboot_ubifs_mount(VOLUME_NAME_DEFAULT);
+                    if(!err) {
+                        bUbiFsMounted = true;
+                    } else {
+                        ubifs_zpl_debug("Error: UBIFS mount failed(Err:%d)", err);
+                        bUbiFsMounted = false;
                     }
                 }
+                if((bUbiFsMounted != 0) && (ubiZplReq.param1 != NULL) &&
+                   (ubiZplReq.param2 != NULL)){
+                    opCnt++;
+                    /* File system operation */
+                    *((int *)ubiZplReq.param2) = ubifs_exists((char *)ubiZplReq.param1);
+                    sts = true;
+                } else {
+                    sts = false;
+                }
+                if(ubiZplReq.cb != NULL) {
+                    ubiZplReq.cb(sts);
+                }
+                break;
             }
-            debug("Done\n");
-            ubifs_ls("/");
-
-            for (i = 0; i < 10; i++) {
-                snprintf(dirname, sizeof(dirname), "/test_dir%02i", i);
-                debug("Info: Verifying Files in %s ...\n", dirname);
-                for (j = 0; j < 10; j++) {
-                    snprintf(filename2, sizeof(filename2), "%s/file%02i", dirname, j);
-                    memset(fileContent, 0x0, sizeof(fileContent));
-                    off = 4096*j;
-                    memset(&fileContent[0] + off, 'j', 10*(j + 1));
-                    memset(fileContent2, 0x0, sizeof(fileContent2));
-                    if(ubifs_read(filename2, (void *)(&fileContent2[0]), (loff_t)0, (loff_t)off + 10*(j+1), (loff_t*)&actread)) {
-                        debug("ERROR: ubifs_read-iteration:%d, filename:%s\n", idx, filename2);
-                        vTaskSuspend(NULL);
-                    }
-                    if (memcmp(fileContent2, fileContent, off + 10*(j + 1))) {
-                        debug("ERROR: content error-iteration:%d, filename:%s\n", idx, filename2);
-                    }
-                    if (ubifs_unlink(filename2)) {
-                        debug("EROOR: ubifs_unlink-iteration:%d, filename:%s\n", filename2);
-                        vTaskSuspend(NULL);
+            case UBI_ZPL_FILE_WRITE: {
+                if(bUbiFsMounted == false) {
+                    err = uboot_ubifs_mount(VOLUME_NAME_DEFAULT);
+                    if(!err) {
+                        bUbiFsMounted = true;
+                    } else {
+                        ubifs_zpl_debug("Error: UBIFS mount failed(Err:%d)", err);
+                        bUbiFsMounted = false;
                     }
                 }
-                debug("Done.\n");
-                debug("Deleting %s...\n", dirname);
-                if (ubifs_rmdir(dirname)) {
-                    debug("ERROR: ubifs_rmdir-iteration:%d, dir: %s\n", idx, dirname);
-                    vTaskSuspend(NULL);
+                if(bUbiFsMounted) {
+                    opCnt++;
+                    /* File system operation */
+                    err = ubifs_write((char *)ubiZplReq.param1,     // filename
+                                    (void *)ubiZplReq.param2,       // buf
+                                    (loff_t)(ubiZplReq.param4),     // offset
+                                    (loff_t)(ubiZplReq.param5),     // size
+                                    (loff_t *)(&temp64)             // actual written bytes
+                                    );
+                    if(!err) {
+                        sts = true;
+                        *((uint32_t *)(ubiZplReq.param3)) = (uint32_t)temp64;
+                    } else {
+                        ubifs_zpl_debug("Error: ubifs_write() fail (Err:%d)", err);
+                        sts = false;
+                    }
+                } else {
+                    sts = false;
                 }
-
-                ubifs_ls("/");
+                if(ubiZplReq.cb != NULL) {
+                    ubiZplReq.cb(sts);
+                }
+                break;
             }
-            if(ubifs_write("/iterationCount", (void *)(&idx), (loff_t)0, (loff_t)4, (loff_t*)&actread)) {
-                debug("ERROR: ubifs_write-iteration:%d, file:iteration\n", idx);
-                vTaskSuspend(NULL);
+            case UBI_ZPL_FILE_READ: {
+                if(bUbiFsMounted == false) {
+                    err = uboot_ubifs_mount(VOLUME_NAME_DEFAULT);
+                    if(!err) {
+                        bUbiFsMounted = true;
+                    } else {
+                        ubifs_zpl_debug("Error: UBIFS mount failed(Err:%d)", err);
+                        bUbiFsMounted = false;
+                    }
+                }
+                if(bUbiFsMounted) {
+                    opCnt++;
+                    /* File system operation */
+                    err = ubifs_read((char *)ubiZplReq.param1,     // filename
+                                   (void *)ubiZplReq.param2,       // buf
+                                   (loff_t)(ubiZplReq.param4),     // offset
+                                   (loff_t)(ubiZplReq.param5),     // size
+                                   (loff_t *)(&temp64)             // actual bytes read
+                                   );
+                    if(!err) {
+                        sts = true;
+                        *((uint32_t *)(ubiZplReq.param3)) = (uint32_t)temp64;
+                    } else {
+                        ubifs_zpl_debug("Error: ubifs_read() fail(Err:%d)", err);
+                        sts = false;
+                    }
+                } else {
+                    sts = false;
+                }
+                if(ubiZplReq.cb != NULL) {
+                    ubiZplReq.cb(sts);
+                }
+                break;
             }
-            debug("Info: Unmounting UBIFS...\n");
-            uboot_ubifs_umount();
-            bUbiFsMounted = false;
-            debug("Free Heap after umount: %d, Min. Heap: %d\n", xPortGetFreeHeapSize(), xPortGetMinimumEverFreeHeapSize());
-            debug(".... done Iteration %d\n\n\n", idx);
-        } else {
-            debug("ERROR: UBI volume not mounted!\n");
+            case UBI_ZPL_FILE_GET_SIZE: {
+                if(bUbiFsMounted == false) {
+                    err = uboot_ubifs_mount(VOLUME_NAME_DEFAULT);
+                    if(!err) {
+                        bUbiFsMounted = true;
+                    } else {
+                        ubifs_zpl_debug("Error: UBIFS mount failed(Err:%d)", err);
+                        bUbiFsMounted = false;
+                    }
+                }
+                if(bUbiFsMounted) {
+                    opCnt++;
+                    /* File system operation */
+                    err = ubifs_size((char *)ubiZplReq.param1,    // filename
+                                   (loff_t *)(&temp64)            // size
+                                   );
+                    if(!err) {
+                        sts = true;
+                        *((uint32_t *)(ubiZplReq.param2)) = (uint32_t)temp64;
+                    } else {
+                        ubifs_zpl_debug("Error: ubifs_size() fail(Err:%d)", err);
+                        sts = false;
+                    }
+                } else {
+                    sts = false;
+                }
+                if(ubiZplReq.cb != NULL) {
+                    ubiZplReq.cb(sts);
+                }
+                break;
+            }
+            case UBI_ZPL_FILE_REMOVE: {
+                if(bUbiFsMounted == false) {
+                    err = uboot_ubifs_mount(VOLUME_NAME_DEFAULT);
+                    if(!err) {
+                        bUbiFsMounted = true;
+                    } else {
+                        ubifs_zpl_debug("Error: UBIFS mount failed(Err:%d)", err);
+                        bUbiFsMounted = false;
+                    }
+                }
+                if(bUbiFsMounted) {
+                    opCnt++;
+                    /* File system operation */
+                    err = ubifs_unlink((char *)ubiZplReq.param1);
+                    if(!err) {
+                        sts = true;
+                    } else {
+                        ubifs_zpl_debug("Error: ubifs_unlink() fail (Err:%d)", err);
+                        sts = false;
+                    }
+                } else {
+                    sts = false;
+                }
+                if(ubiZplReq.cb != NULL) {
+                    ubiZplReq.cb(sts);
+                }
+                break;
+            }
+            case UBI_ZPL_DIR_MAKE: {
+                if(bUbiFsMounted == false) {
+                    err = uboot_ubifs_mount(VOLUME_NAME_DEFAULT);
+                    if(!err) {
+                        bUbiFsMounted = true;
+                    } else {
+                        ubifs_zpl_debug("Error: UBIFS mount failed(Err:%d)", err);
+                        bUbiFsMounted = false;
+                    }
+                }
+                if(bUbiFsMounted) {
+                    opCnt++;
+                    /* File system operation */
+                    err = ubifs_mkdir((char *)ubiZplReq.param1);
+                    if(!err) {
+                        sts = true;
+                    } else {
+                        ubifs_zpl_debug("Error: ubifs_mkdir() fail(Err:%d)", err);
+                        sts = false;
+                    }
+                } else {
+                    sts = false;
+                }
+                if(ubiZplReq.cb != NULL) {
+                    ubiZplReq.cb(sts);
+                }
+                break;
+            }
+            case UBI_ZPL_DIR_REMOVE: {
+                if(bUbiFsMounted == false) {
+                    err = uboot_ubifs_mount(VOLUME_NAME_DEFAULT);
+                    if(!err) {
+                        bUbiFsMounted = true;
+                    } else {
+                        ubifs_zpl_debug("Error: UBIFS mount failed(Err:%d)", err);
+                        bUbiFsMounted = false;
+                    }
+                }
+                if(bUbiFsMounted) {
+                    opCnt++;
+                    /* File system operation */
+                    err = ubifs_rmdir((char *)ubiZplReq.param1);
+                    if(!err) {
+                        sts = true;
+                    } else {
+                        ubifs_zpl_debug("Error: ubifs_rmdir() fail(Err:%d)", err);
+                        sts = false;
+                    }
+                } else {
+                    sts = false;
+                }
+                if(ubiZplReq.cb != NULL) {
+                    ubiZplReq.cb(sts);
+                }
+                break;
+            }
+            default: {
+                break;
+            }
+            }
         }
     }
     ubi_exit();
     vTaskDelete(NULL);
 }
 
+UBI_ZPL_RET_T UBI_ZPL_FileWrite(char * filename, void *buf, uint32_t offset, uint32_t size, uint32_t *actwritten, ubi_zpl_cb_fcn cb)
+{
+    UBI_ZPL_RET_T retval = UBI_ZPL_NOERROR;
+    ubi_zpl_req_t req;
+
+    if(bInitDone != true) {
+        return UBI_ZPL_NOT_INITED;
+    }
+
+    if((filename == NULL) || (buf == NULL) || (actwritten == NULL)) {
+        retval = UBI_ZPL_INVALID_ARG;
+    } else {
+        req.op = UBI_ZPL_FILE_WRITE;
+        req.param1 = (void *)filename;
+        req.param2 = buf;
+        req.param4 = offset;
+        req.param5 = size;
+        req.param3 = (void *)actwritten;
+        req.cb = cb;
+
+        /* Send Request to Queue without Blocking*/
+        if(pdTRUE != xQueueSend(xQueueHandleUbi, &req, (TickType_t)0)) {
+            retval = UBI_ZPL_QUEUE_FULL;
+        }
+    }
+
+    return(retval);
+}
+
+UBI_ZPL_RET_T UBI_ZPL_FileRead(char * filename, void *buf, uint32_t offset, uint32_t size, uint32_t *actread, ubi_zpl_cb_fcn cb)
+{
+    UBI_ZPL_RET_T retval = UBI_ZPL_NOERROR;
+    ubi_zpl_req_t req;
+
+    if(bInitDone != true) {
+        return UBI_ZPL_NOT_INITED;
+    }
+
+    if((filename == NULL) || (buf == NULL) || (actread == NULL)) {
+        retval = UBI_ZPL_INVALID_ARG;
+    } else {
+        req.op = UBI_ZPL_FILE_READ;
+        req.param1 = (void *)filename;
+        req.param2 = buf;
+        req.param4 = offset;
+        req.param5 = size;
+        req.param3 = (void *)actread;
+        req.cb = cb;
+
+        /* Send Request to Queue without Blocking*/
+        if(pdTRUE != xQueueSend(xQueueHandleUbi, &req, (TickType_t)0)) {
+            retval = UBI_ZPL_QUEUE_FULL;
+        }
+    }
+
+    return(retval);
+}
+
+
+UBI_ZPL_RET_T UBI_ZPL_FileGetSize(const char * filename, uint32_t *size, ubi_zpl_cb_fcn cb)
+{
+    UBI_ZPL_RET_T retval = UBI_ZPL_NOERROR;
+    ubi_zpl_req_t req = {0};
+
+    if(bInitDone != true) {
+        return UBI_ZPL_NOT_INITED;
+    }
+
+    if(filename == NULL) {
+        retval = UBI_ZPL_INVALID_ARG;
+    } else {
+        req.op = UBI_ZPL_FILE_GET_SIZE;
+        req.param1 = (void *)filename;
+        req.param2 = (void *)size;
+        req.cb = cb;
+
+        /* Send Request to Queue without Blocking*/
+        if(pdTRUE != xQueueSend(xQueueHandleUbi, &req, (TickType_t)0)) {
+            retval = UBI_ZPL_QUEUE_FULL;
+        }
+    }
+
+    return(retval);
+}
+
+UBI_ZPL_RET_T UBI_ZPL_FileExist(
+        const char * filename,
+        int * bExist,
+        ubi_zpl_cb_fcn cb)
+{
+    UBI_ZPL_RET_T retval = UBI_ZPL_NOERROR;
+    ubi_zpl_req_t req = {0};
+
+    if(bInitDone != true) {
+        return UBI_ZPL_NOT_INITED;
+    }
+
+    if((filename == NULL) || (bExist == NULL)) {
+        retval = UBI_ZPL_INVALID_ARG;
+    } else {
+        req.op = UBI_ZPL_FILE_EXIST;
+        req.param1 = (void *)filename;
+        req.param2 = (void *)bExist;
+        req.cb = cb;
+
+        /* Send Request to Queue without Blocking*/
+        if(pdTRUE != xQueueSend(xQueueHandleUbi, &req, (TickType_t)0)) {
+            retval = UBI_ZPL_QUEUE_FULL;
+        }
+    }
+
+    return(retval);
+}
+
+UBI_ZPL_RET_T UBI_ZPL_RmFile(
+        const char * filename,
+        ubi_zpl_cb_fcn cb)
+{
+    UBI_ZPL_RET_T retval = UBI_ZPL_NOERROR;
+    ubi_zpl_req_t req = {0};
+
+    if(bInitDone != true) {
+        return UBI_ZPL_NOT_INITED;
+    }
+
+    if(filename == NULL) {
+        retval = UBI_ZPL_INVALID_ARG;
+    } else {
+        req.op = UBI_ZPL_FILE_REMOVE;
+        req.param1 = (void *)filename;
+        req.cb = cb;
+
+        /* Send Request to Queue without Blocking*/
+        if(pdTRUE != xQueueSend(xQueueHandleUbi, &req, (TickType_t)0)) {
+            retval = UBI_ZPL_QUEUE_FULL;
+        }
+    }
+
+    return(retval);
+}
+
+UBI_ZPL_RET_T UBI_ZPL_MkDir(
+        const char * dirname,
+        ubi_zpl_cb_fcn cb)
+{
+    UBI_ZPL_RET_T retval = UBI_ZPL_NOERROR;
+    ubi_zpl_req_t req = {0};
+
+    if(bInitDone != true) {
+        return UBI_ZPL_NOT_INITED;
+    }
+
+    if(dirname == NULL) {
+        retval = UBI_ZPL_INVALID_ARG;
+    } else {
+        req.op = UBI_ZPL_DIR_MAKE;
+        req.param1 = (void *)dirname;
+        req.cb = cb;
+
+        /* Send Request to Queue without Blocking*/
+        if(pdTRUE != xQueueSend(xQueueHandleUbi, &req, (TickType_t)0)) {
+            retval = UBI_ZPL_QUEUE_FULL;
+        }
+    }
+
+    return(retval);
+}
+
+UBI_ZPL_RET_T UBI_ZPL_RmDir(
+        const char * dirname,
+        ubi_zpl_cb_fcn cb)
+{
+    UBI_ZPL_RET_T retval = UBI_ZPL_NOERROR;
+    ubi_zpl_req_t req = {0};
+
+    if(bInitDone != true) {
+        return UBI_ZPL_NOT_INITED;
+    }
+
+    if(dirname == NULL) {
+        retval = UBI_ZPL_INVALID_ARG;
+    } else {
+        req.op = UBI_ZPL_DIR_REMOVE;
+        req.param1 = (void *)dirname;
+        req.cb = cb;
+
+        /* Send Request to Queue without Blocking*/
+        if(pdTRUE != xQueueSend(xQueueHandleUbi, &req, (TickType_t)0)) {
+            retval = UBI_ZPL_QUEUE_FULL;
+        }
+    }
+
+    return(retval);
+}
