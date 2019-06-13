@@ -209,11 +209,26 @@ static inline int test_and_set_bit(int nr, volatile void * addr) {
  * computed by a preprocessor in the best case, allowing for the best
  * optimization.
  */
+#if 0
 #define debug_cond(cond, fmt, args...)          \
     do {                                   \
         if (cond)                          \
             printf(fmt, ##args);                  \
     } while (0)
+#else
+
+#define MAX_LOG_LEN  (1024)
+extern char logData[MAX_LOG_LEN+1];
+#define debug_cond(cond, fmt, args...)          \
+    do {                                   \
+        if (cond) {                          \
+            snprintf(logData, MAX_LOG_LEN, fmt, ##args); \
+            logData[MAX_LOG_LEN] = '\0'; \
+            BSP_UART_Send(0, logData, strlen(logData)); \
+            BSP_UART_Send(0, "\r", 1); \
+        } \
+    } while (0)
+#endif
 
 /* Show a message if DEBUG is defined in a file */
 #define debug(fmt, args...)         \

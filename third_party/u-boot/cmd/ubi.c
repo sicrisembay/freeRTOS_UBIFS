@@ -26,7 +26,7 @@
 #include <jffs2/load_kernel.h>
 
 #undef ubi_msg
-#define ubi_msg(fmt, ...) printf("UBI: " fmt "\n", ##__VA_ARGS__)
+#define ubi_msg(fmt, ...) debug("UBI: " fmt "\n", ##__VA_ARGS__)
 #else
 #include "zplCompat.h"
 #include "linux/mtd/mtd.h"
@@ -150,7 +150,7 @@ static int verify_mkvol_req(const struct ubi_device *ubi,
 		goto bad;
 
 	if (req->bytes == 0) {
-		printf("No space left in UBI device!\n");
+		debug("No space left in UBI device!\n");
 		err = ENOMEM;
 		goto bad;
 	}
@@ -167,7 +167,7 @@ static int verify_mkvol_req(const struct ubi_device *ubi,
 		goto bad;
 
 	if (req->name_len > UBI_VOL_NAME_MAX) {
-		printf("Name too long!\n");
+		debug("Name too long!\n");
 		err = ENAMETOOLONG;
 		goto bad;
 	}
@@ -198,10 +198,10 @@ static int ubi_create_vol(char *volume, int64_t size, int dynamic, int vol_id)
 	/* It's duplicated at drivers/mtd/ubi/cdev.c */
 	err = verify_mkvol_req(ubi, &req);
 	if (err) {
-		printf("verify_mkvol_req failed %d\n", err);
+		debug("verify_mkvol_req failed %d\n", err);
 		return err;
 	}
-	printf("Creating %s volume %s of size %ld\n",
+	debug("Creating %s volume %s of size %ld\n",
 		dynamic ? "dynamic" : "static", volume, size);
 	/* Call real ubi create volume */
 	return ubi_create_volume(ubi, &req);
@@ -218,7 +218,7 @@ static struct ubi_volume *ubi_find_volume(char *volume)
 			return vol;
 	}
 
-	printf("Volume %s not found!\n", volume);
+	debug("Volume %s not found!\n", volume);
 	return NULL;
 }
 
@@ -231,17 +231,17 @@ static int ubi_remove_vol(char *volume)
 	if (vol == NULL)
 		return ENODEV;
 
-	printf("Remove UBI volume %s (id %d)\n", vol->name, vol->vol_id);
+	debug("Remove UBI volume %s (id %d)\n", vol->name, vol->vol_id);
 
 	if (ubi->ro_mode) {
-		printf("It's read-only mode\n");
+		debug("It's read-only mode\n");
 		err = EROFS;
 		goto out_err;
 	}
 
 	err = ubi_change_vtbl_record(ubi, vol->vol_id, NULL);
 	if (err) {
-		printf("Error changing Vol tabel record err=%x\n", err);
+		debug("Error changing Vol tabel record err=%x\n", err);
 		goto out_err;
 	}
 	reserved_pebs = vol->reserved_pebs;
@@ -287,7 +287,7 @@ static int ubi_volume_continue_write(char *volume, void *buf, size_t size)
 
 	err = ubi_more_update_data(ubi, vol, buf, size);
 	if (err < 0) {
-		printf("Couldnt or partially wrote data\n");
+		debug("Couldnt or partially wrote data\n");
 		return -err;
 	}
 
@@ -324,13 +324,13 @@ int ubi_volume_begin_write(char *volume, void *buf, size_t size,
 
 	rsvd_bytes = vol->reserved_pebs * (ubi->leb_size - vol->data_pad);
 	if (size > rsvd_bytes) {
-		printf("size > volume size! Aborting!\n");
+		debug("size > volume size! Aborting!\n");
 		return EINVAL;
 	}
 
 	err = ubi_start_update(ubi, vol, full_size);
 	if (err < 0) {
-		printf("Cannot start volume update\n");
+		debug("Cannot start volume update\n");
 		return -err;
 	}
 
@@ -355,23 +355,23 @@ int ubi_volume_read(char *volume, char *buf, size_t size)
 		return ENODEV;
 
 	if (vol->updating) {
-		printf("updating");
+		debug("updating");
 		return EBUSY;
 	}
 	if (vol->upd_marker) {
-		printf("damaged volume, update marker is set");
+		debug("damaged volume, update marker is set");
 		return EBADF;
 	}
 	if (offp == vol->used_bytes)
 		return 0;
 
 	if (size == 0) {
-		printf("No size specified -> Using max size (%ld)\n", vol->used_bytes);
+		debug("No size specified -> Using max size (%ld)\n", vol->used_bytes);
 		size = vol->used_bytes;
 	}
 
 	if (vol->corrupted)
-		printf("read from corrupted volume %d", vol->vol_id);
+		debug("read from corrupted volume %d", vol->vol_id);
 	if (offp + size > vol->used_bytes)
 		size = vol->used_bytes - offp;
 
@@ -380,7 +380,7 @@ int ubi_volume_read(char *volume, char *buf, size_t size)
 		tbuf_size = ALIGN(size, ubi->min_io_size);
 	tbuf = malloc_cache_aligned(tbuf_size);
 	if (!tbuf) {
-		printf("NO MEM\n");
+		debug("NO MEM\n");
 		return ENOMEM;
 	}
 	len = size > tbuf_size ? tbuf_size : size;
@@ -394,7 +394,7 @@ int ubi_volume_read(char *volume, char *buf, size_t size)
 
 		err = ubi_eba_read_leb(ubi, vol, lnum, tbuf, off, len, 0);
 		if (err) {
-			printf("read err %x\n", err);
+			debug("read err %x\n", err);
 			err = -err;
 			break;
 		}
@@ -461,7 +461,7 @@ static int ubi_dev_scan(struct mtd_info *info, char *ubidev,
 int ubi_detach(void)
 {
 	if (mtdparts_init() != 0) {
-		printf("Error initializing mtdparts!\n");
+		debug("Error initializing mtdparts!\n");
 		return 1;
 	}
 
@@ -502,13 +502,13 @@ int ubi_part(char *part_name, const char *vid_header_offset)
 	 * is located
 	 */
 	if (find_dev_and_part(part_name, &dev, &pnum, &part)) {
-		printf("Partition %s not found!\n", part_name);
+		debug("Partition %s not found!\n", part_name);
 		return 1;
 	}
 	sprintf(mtd_dev, "%s%d", MTD_DEV_TYPE(dev->id->type), dev->id->num);
 	ubi_dev.mtd_info = get_mtd_device_nm(mtd_dev);
 	if (IS_ERR(ubi_dev.mtd_info)) {
-		printf("Partition %s not found on device %s!\n", part_name,
+		debug("Partition %s not found on device %s!\n", part_name,
 		       mtd_dev);
 		return 1;
 	}
@@ -519,7 +519,7 @@ int ubi_part(char *part_name, const char *vid_header_offset)
 	err = ubi_dev_scan(ubi_dev.mtd_info, ubi_dev.part_name,
 			vid_header_offset);
 	if (err) {
-		printf("UBI init error %d\n", err);
+		debug("UBI init error %d\n", err);
 		ubi_dev.selected = 0;
 		return err;
 	}
@@ -553,11 +553,11 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		/* Print current partition */
 		if (argc == 2) {
 			if (!ubi_dev.selected) {
-				printf("Error, no UBI device/partition selected!\n");
+				debug("Error, no UBI device/partition selected!\n");
 				return 1;
 			}
 
-			printf("Device %d: %s, partition %s\n",
+			debug("Device %d: %s, partition %s\n",
 			       ubi_dev.nr, ubi_dev.mtd_info->name, ubi_dev.part_name);
 			return 0;
 		}
@@ -572,7 +572,7 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 	}
 
 	if ((strcmp(argv[1], "part") != 0) && (!ubi_dev.selected)) {
-		printf("Error, no UBI device/partition selected!\n");
+		debug("Error, no UBI device/partition selected!\n");
 		return 1;
 	}
 
@@ -587,7 +587,7 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		if (argc > 2)
 			return ubi_check(argv[2]);
 
-		printf("Error, no volume name passed\n");
+		debug("Error, no volume name passed\n");
 		return 1;
 	}
 
@@ -609,7 +609,7 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			if (strncmp(argv[4], "s", 1) == 0)
 				dynamic = 0;
 			else if (strncmp(argv[4], "d", 1) != 0) {
-				printf("Incorrect type\n");
+				debug("Incorrect type\n");
 				return 1;
 			}
 			argc--;
@@ -623,7 +623,7 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		/* Use maximum available size */
 		if (!size) {
 			size = (int64_t)ubi->avail_pebs * ubi->leb_size;
-			printf("No size specified -> Using max size (%ld)\n", size);
+			debug("No size specified -> Using max size (%ld)\n", size);
 		}
 		/* E.g., create volume */
 		if (argc == 3)
@@ -640,7 +640,7 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		int ret;
 
 		if (argc < 5) {
-			printf("Please see usage\n");
+			debug("Please see usage\n");
 			return 1;
 		}
 
@@ -662,7 +662,7 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 			ret = ubi_volume_write(argv[3], (void *)addr, size);
 		}
 		if (!ret) {
-			printf("%ld bytes written to volume %s\n", size,
+			debug("%ld bytes written to volume %s\n", size,
 			       argv[3]);
 		}
 
@@ -685,14 +685,14 @@ static int do_ubi(cmd_tbl_t *cmdtp, int flag, int argc, char * const argv[])
 		}
 
 		if (argc == 3) {
-			printf("Read %ld bytes from volume %s to %lx\n", size,
+			debug("Read %ld bytes from volume %s to %lx\n", size,
 			       argv[3], addr);
 
 			return ubi_volume_read(argv[3], (char *)addr, size);
 		}
 	}
 
-	printf("Please see usage\n");
+	debug("Please see usage\n");
 	return 1;
 }
 

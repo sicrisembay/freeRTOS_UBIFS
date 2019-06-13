@@ -313,35 +313,35 @@ static int filldir(struct ubifs_info *c, const char *name, int namlen,
 
 	switch (d_type) {
 	case UBIFS_ITYPE_REG:
-		printf("\t");
+		debug("\t");
 		break;
 	case UBIFS_ITYPE_DIR:
-		printf("<DIR>\t");
+		debug("<DIR>\t");
 		break;
 	case UBIFS_ITYPE_LNK:
-		printf("<LNK>\t");
+		debug("<LNK>\t");
 		break;
 	default:
-		printf("other\t");
+		debug("other\t");
 		break;
 	}
 
 	inode = ubifs_iget(c->vfs_sb, ino);
 	if (IS_ERR(inode)) {
-		printf("%s: Error in ubifs_iget(), ino=%ld ret=%p!\n",
+		debug("%s: Error in ubifs_iget(), ino=%ld ret=%p!\n",
 		       __func__, ino, inode);
 		return -1;
 	}
 	ctime_r((time_t *)&inode->i_mtime, filetime);
 #ifndef __ZPL_BUILD__
-	printf("%9lld  %24.24s  ", inode->i_size, filetime);
+	debug("%9lld  %24.24s  ", inode->i_size, filetime);
 #ifndef __UBOOT__
 	ubifs_iput(inode);
 #endif
 
-	printf("%s\n", name);
+	debug("%s\n", name);
 #else
-	printf("%9ld  %24.24s  %s\n", (u32)(inode->i_size), filetime, name);
+	debug("%9ld  %24.24s  %s\n", (u32)(inode->i_size), filetime, name);
 	ubifs_iput(inode);
 #endif /* __ZPL_BUILD__ */
 	return 0;
@@ -453,7 +453,7 @@ static int ubifs_finddir(struct super_block *sb, char *dirname,
 	dentry = kzalloc(sizeof(struct dentry), 0);
 	dir = kzalloc(sizeof(struct inode), 0);
 	if (!file || !dentry || !dir) {
-		printf("%s: Error, no memory for malloc!\n", __func__);
+		debug("%s: Error, no memory for malloc!\n", __func__);
 		err = -ENOMEM;
 		goto out;
 	}
@@ -579,7 +579,7 @@ static unsigned long ubifs_findfile(struct super_block *sb, char *filename,
 
 			/* We have some sort of symlink recursion, bail out */
 			if (symlink_count++ > 8) {
-				printf("Symlink recursion, aborting\n");
+				debug("Symlink recursion, aborting\n");
 				ubifs_iput(inode);
 				return 0;
 			}
@@ -662,7 +662,7 @@ int ubifs_ls(const char *filename)
 	dentry = kzalloc(sizeof(struct dentry), 0);
 	dir = kzalloc(sizeof(struct inode), 0);
 	if (!file || !dentry || !dir) {
-		printf("%s: Error, no memory for malloc!\n", __func__);
+		debug("%s: Error, no memory for malloc!\n", __func__);
 		ret = -ENOMEM;
 		goto out_mem;
 	}
@@ -718,7 +718,7 @@ int ubifs_size(const char *filename, loff_t *size)
 
 	inode = ubifs_iget(ubifs_sb, inum);
 	if (IS_ERR(inode)) {
-		printf("%s: Error reading inode %ld!\n", __func__, inum);
+		debug("%s: Error reading inode %ld!\n", __func__, inum);
 		err = PTR_ERR(inode);
 		goto out;
 	}
@@ -840,7 +840,7 @@ static int do_readpage(struct ubifs_info *c, struct inode *inode,
 				 */
 				buff = malloc_cache_aligned(UBIFS_BLOCK_SIZE);
 				if (!buff) {
-					printf("%s: Error, malloc fails!\n",
+					debug("%s: Error, malloc fails!\n",
 					       __func__);
 					err = -ENOMEM;
 					break;
@@ -915,7 +915,7 @@ int ubifs_read(const char *filename, void *buf, loff_t offset,
 	*actread = 0;
 
 	if (offset & (PAGE_SIZE - 1)) {
-		printf("ubifs: Error offset must be a multiple of %d\n",
+		debug("ubifs: Error offset must be a multiple of %d\n",
 		       PAGE_SIZE);
 		return -1;
 	}
@@ -934,13 +934,13 @@ int ubifs_read(const char *filename, void *buf, loff_t offset,
 	 */
 	inode = ubifs_iget(ubifs_sb, inum);
 	if (IS_ERR(inode)) {
-		printf("%s: Error reading inode %ld!\n", __func__, inum);
+		debug("%s: Error reading inode %ld!\n", __func__, inum);
 		err = PTR_ERR(inode);
 		goto out;
 	}
 
 	if (offset > inode->i_size) {
-		printf("ubifs: Error offset (%ld) > file-size (%ld)\n",
+		debug("ubifs: Error offset (%ld) > file-size (%ld)\n",
 		       offset, size);
 		err = -1;
 		goto put_inode;
@@ -974,7 +974,7 @@ int ubifs_read(const char *filename, void *buf, loff_t offset,
 	}
 
 	if (err) {
-		printf("Error reading file '%s'\n", filename);
+		debug("Error reading file '%s'\n", filename);
 		*actread = i * PAGE_SIZE;
 	} else {
 		*actread = size;
@@ -1296,7 +1296,7 @@ int ubifs_rmdir(const char *filename)
 
 	p = strrchr(filename, '/');
 	if (!p) {
-		printf("%s: File path is not absolute '%s'!\n", __func__, filename);
+		debug("%s: File path is not absolute '%s'!\n", __func__, filename);
 		err = -EINVAL;
 		goto out;
 	}
@@ -1320,21 +1320,21 @@ int ubifs_rmdir(const char *filename)
 
 	dir = ubifs_iget(ubifs_sb, idir);
 	if (IS_ERR(dir)) {
-		printf("%s: No parent dir inode for '%s'!\n", __func__, filename);
+		debug("%s: No parent dir inode for '%s'!\n", __func__, filename);
 		err = PTR_ERR(dir);
 		goto out;
 	}
 	dir_ui = ubifs_inode(dir);
 
 	if (!inum) {
-		printf("%s: No inode for '%s'!\n", __func__, filename);
+		debug("%s: No inode for '%s'!\n", __func__, filename);
 		err = PTR_ERR(inode);
 		goto out;
 	}
 
 	inode = ubifs_iget(ubifs_sb, inum);
 	if (IS_ERR(inode)) {
-		printf("%s: Error reading inode %ld!\n", __func__, inum);
+		debug("%s: Error reading inode %ld!\n", __func__, inum);
 		err = PTR_ERR(inode);
 		goto out_dir;
 	}
@@ -1405,7 +1405,7 @@ int ubifs_mkdir(const char *filename)
 
 	p = strrchr(filename, '/');
 	if (!p) {
-		printf("%s: File path is not absolute '%s'!\n", __func__, filename);
+		debug("%s: File path is not absolute '%s'!\n", __func__, filename);
 		err = -EINVAL;
 		goto out;
 	}
@@ -1418,20 +1418,20 @@ int ubifs_mkdir(const char *filename)
 	if (!inum) {
 		iparent_dir = ubifs_iget(ubifs_sb, parent_dir);
 		if (IS_ERR(iparent_dir)) {
-			printf("%s: No parent dir inode for '%s'!\n", __func__, filename);
+			debug("%s: No parent dir inode for '%s'!\n", __func__, filename);
 			err = PTR_ERR(inode);
 			goto out;
 		}
 
 		inode = ubifs_create(iparent_dir, &fn, S_IFDIR, 0);
 		if (IS_ERR(inode)) {
-			printf("%s: Can't create inode %d!\n", __func__, (int)inode);
+			debug("%s: Can't create inode %d!\n", __func__, (int)inode);
 			err = PTR_ERR(inode);
 			goto out_dir;
 		}
 
 	} else {
-		printf("%s: This name already exists: %s!\n", __func__, filename);
+		debug("%s: This name already exists: %s!\n", __func__, filename);
 		err = -EACCES;
 		goto out;
 	}
@@ -1461,7 +1461,7 @@ int ubifs_write(const char *filename, void *buf, loff_t offset,
 
 	p = strrchr(filename, '/');
 	if (!p) {
-		printf("%s: File path is not absolute '%s'!\n", __func__, filename);
+		debug("%s: File path is not absolute '%s'!\n", __func__, filename);
 		err = -EINVAL;
 		goto out;
 	}
@@ -1472,7 +1472,7 @@ int ubifs_write(const char *filename, void *buf, loff_t offset,
 	*actwritten = 0;
 
 	if (offset & (PAGE_SIZE - 1)) {
-		printf("ubifs: Error offset must be a multiple of %d\n",
+		debug("ubifs: Error offset must be a multiple of %d\n",
 		       PAGE_SIZE);
 		return -1;
 	}
@@ -1484,7 +1484,7 @@ int ubifs_write(const char *filename, void *buf, loff_t offset,
 
 	iparent_dir = ubifs_iget(ubifs_sb, parent_dir);
 	if (IS_ERR(iparent_dir)) {
-		printf("%s: No parent dir inode for '%s'!\n", __func__, filename);
+		debug("%s: No parent dir inode for '%s'!\n", __func__, filename);
 		err = PTR_ERR(iparent_dir);
 		goto out;
 	}
@@ -1492,14 +1492,14 @@ int ubifs_write(const char *filename, void *buf, loff_t offset,
 	if (!inum) {
 		inode = ubifs_create(iparent_dir, &fn, S_IFREG, 0);
 		if (IS_ERR(inode)) {
-			printf("%s: Can't create inode %d!\n", __func__, (int)inode);
+			debug("%s: Can't create inode %d!\n", __func__, (int)inode);
 			err = PTR_ERR(inode);
 			goto out;
 		}
 		ubifs_iput(inode);
 		inum = ubifs_findfile(ubifs_sb, (char *)filename, &parent_dir);
 		if (!inum) {
-			printf("%s: Can't find created inode!\n", __func__);
+			debug("%s: Can't find created inode!\n", __func__);
 			err = PTR_ERR(inode);
 			goto out_inode;
 		}
@@ -1509,7 +1509,7 @@ int ubifs_write(const char *filename, void *buf, loff_t offset,
 
 	inode = ubifs_iget(ubifs_sb, inum);
 	if (IS_ERR(inode)) {
-		printf("%s: Error reading inode %ld!\n", __func__, inum);
+		debug("%s: Error reading inode %ld!\n", __func__, inum);
 		err = PTR_ERR(inode);
 		goto out;
 	}
@@ -1537,7 +1537,7 @@ int ubifs_write(const char *filename, void *buf, loff_t offset,
 	}
 
 	if (err) {
-		printf("Error writing file '%s'\n", filename);
+		debug("Error writing file '%s'\n", filename);
 		*actwritten = i * PAGE_SIZE;
 	} else {
 		*actwritten = size;
@@ -1575,7 +1575,7 @@ int ubifs_unlink(const char *filename)
 
 	p = strrchr(filename, '/');
 	if (!p) {
-		printf("%s: File path is not absolute '%s'!\n", __func__, filename);
+		debug("%s: File path is not absolute '%s'!\n", __func__, filename);
 		err = -EINVAL;
 		goto out;
 	}
@@ -1600,21 +1600,21 @@ int ubifs_unlink(const char *filename)
 
 	dir = ubifs_iget(ubifs_sb, idir);
 	if (IS_ERR(dir)) {
-		printf("%s: No parent dir inode for '%s'!\n", __func__, filename);
+		debug("%s: No parent dir inode for '%s'!\n", __func__, filename);
 		err = PTR_ERR(dir);
 		goto out;
 	}
 	dir_ui = ubifs_inode(dir);
 
 	if (!inum) {
-		printf("%s: No inode for '%s'!\n", __func__, filename);
+		debug("%s: No inode for '%s'!\n", __func__, filename);
 		err = PTR_ERR(inode);
 		goto out_dir;
 	}
 
 	inode = ubifs_iget(ubifs_sb, inum);
 	if (IS_ERR(inode)) {
-		printf("%s: Error reading inode %ld!\n", __func__, inum);
+		debug("%s: Error reading inode %ld!\n", __func__, inum);
 		err = PTR_ERR(inode);
 		goto out_dir;
 	}
@@ -1679,12 +1679,12 @@ int ubifs_load(char *filename, u32 addr, u32 size)
 	loff_t actread;
 	int err;
 
-	printf("Loading file '%s' to addr 0x%08x...\n", filename, addr);
+	debug("Loading file '%s' to addr 0x%08x...\n", filename, addr);
 
 	err = ubifs_read(filename, (void *)(uintptr_t)addr, 0, size, &actread);
 	if (err == 0) {
 		setenv_hex("filesize", actread);
-		printf("Done\n");
+		debug("Done\n");
 	}
 
 	return err;
@@ -1695,7 +1695,7 @@ void uboot_ubifs_umount(void)
 	if (ubifs_sb) {
 		struct ubifs_info *c = ubifs_sb->s_fs_info;
 
-		printf("Unmounting UBIFS volume %s!\n",
+		debug("Unmounting UBIFS volume %s!\n",
 		       ((struct ubifs_info *)(ubifs_sb->s_fs_info))->vi.name);
 		ubifs_umount(c);
 		ubifs_sb = NULL;

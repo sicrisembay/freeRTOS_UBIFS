@@ -540,7 +540,7 @@ int ubifs_read_superblock(struct ubifs_info *c)
 		if (err)
 			return err;
 #else
-		printf("No UBIFS filesystem found!\n");
+		debug("No UBIFS filesystem found!\n");
 		return -1;
 #endif
 	}

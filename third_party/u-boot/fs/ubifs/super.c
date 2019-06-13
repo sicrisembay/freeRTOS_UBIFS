@@ -2684,7 +2684,7 @@ int uboot_ubifs_mount(char *vol_name)
 	flags = MS_SYNCHRONOUS;
 	ret = ubifs_mount(&ubifs_fs_type, flags, vol_name, NULL);
 	if (IS_ERR(ret)) {
-		printf("Error reading superblock on volume '%s' " \
+		debug("Error reading superblock on volume '%s' " \
 			"errno=%d!\n", vol_name, (int)PTR_ERR(ret));
 		return -1;
 	}
