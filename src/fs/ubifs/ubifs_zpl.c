@@ -57,6 +57,7 @@ typedef struct {
 
 #define UBI_Q_LEN                       (10)
 #define UBI_Q_ITEM_SZ                   (sizeof(ubi_zpl_req_t))
+#define OP_THRES                        (512)
 
 #define ubifs_zpl_debug(fmt, args...)    debug_cond(ENABLE_DEBUG_PRINTF, fmt, ##args)
 
@@ -424,6 +425,14 @@ static void _Ubi_Task(void *pxParam)
             default: {
                 break;
             }
+            }
+
+            if(opCnt > OP_THRES) {
+                opCnt = 0;
+                if(bUbiFsMounted) {
+                    uboot_ubifs_umount();
+                    bUbiFsMounted = false;
+                }
             }
         }
     }

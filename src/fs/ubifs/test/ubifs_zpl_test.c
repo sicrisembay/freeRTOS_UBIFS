@@ -142,7 +142,13 @@ static char * const iterationFile = "/iterationCount";
 
 static void _FsTest_cb(bool sts)
 {
-    xSemaphoreGive(semHdlFsOpDone);
+    if(sts) {
+        xSemaphoreGive(semHdlFsOpDone);
+    } else {
+        ubifs_zpl_test_debug("FsTest: error on requested operation");
+        vTaskSuspend(xTaskHandleFsTest);
+        ubifs_zpl_test_debug("FsTest: xTaskHandleFsTest task suspended");
+    }
 }
 
 static void _FsTest_Task(void *pxParam)
@@ -154,7 +160,7 @@ static void _FsTest_Task(void *pxParam)
     uint32_t fileOffset;
     uint32_t idx;
     uint32_t fileSz;
-    bool exist = false;
+    int exist = 0;
 
     semHdlFsOpDone = xSemaphoreCreateBinaryStatic(&semBuffFsOpDone);
     iterationCount = 0;
@@ -162,19 +168,28 @@ static void _FsTest_Task(void *pxParam)
 
     while(1) {
         vTaskDelay(5000);
-        /* Get Test Iteration Count */
-        ubifs_zpl_test_debug("FsTest: Free Heap = %d, Min Free = %d", xPortGetFreeHeapSize(), xPortGetMinimumEverFreeHeapSize());
-        UBI_ZPL_FileRead(iterationFile, (void*)&iterationCount, 0, 4, &actread, _FsTest_cb);
+        /* Check file exist */
+        UBI_ZPL_FileExist(iterationFile, &exist, _FsTest_cb);
         xSemaphoreTake(semHdlFsOpDone, portMAX_DELAY);
-        ubifs_zpl_test_debug("FsTest: Iteration Count = %d", iterationCount);
-        iterationCount++;
+        if(exist) {
+            /* Get Test Iteration Count */
+            ubifs_zpl_test_debug("FsTest: Free Heap = %d, Min Free = %d", xPortGetFreeHeapSize(), xPortGetMinimumEverFreeHeapSize());
+            UBI_ZPL_FileRead(iterationFile, (void*)&iterationCount, 0, 4, &actread, _FsTest_cb);
+            xSemaphoreTake(semHdlFsOpDone, portMAX_DELAY);
+            ubifs_zpl_test_debug("FsTest: Iteration Count = %d", iterationCount);
+            iterationCount++;
+        }
 
         /* Create Folder */
-        ubifs_zpl_test_debug("FsTest: Free Heap = %d, Min Free = %d", xPortGetFreeHeapSize(), xPortGetMinimumEverFreeHeapSize());
-        ubifs_zpl_test_debug("FsTest: Creating Test Directory, %s", dirname);
-        UBI_ZPL_MkDir(dirname, _FsTest_cb);
+        UBI_ZPL_FileExist(dirname, &exist, _FsTest_cb);
         xSemaphoreTake(semHdlFsOpDone, portMAX_DELAY);
-        ubifs_zpl_test_debug("FsTest: Done");
+        if(!exist) {
+            ubifs_zpl_test_debug("FsTest: Free Heap = %d, Min Free = %d", xPortGetFreeHeapSize(), xPortGetMinimumEverFreeHeapSize());
+            ubifs_zpl_test_debug("FsTest: Creating Test Directory, %s", dirname);
+            UBI_ZPL_MkDir(dirname, _FsTest_cb);
+            xSemaphoreTake(semHdlFsOpDone, portMAX_DELAY);
+            ubifs_zpl_test_debug("FsTest: Done");
+        }
 
         /* Generate Random File with Random Length */
         fileLen = rand() % MAX_FILE_SZ;
