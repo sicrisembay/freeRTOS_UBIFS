@@ -136,6 +136,7 @@ void UBI_ZPL_EnvTestInit(void)
 static char * const testFile = "/fsTest_dir/fsTest.bin";
 static char * const dirname = "/fsTest_dir";
 #define MAX_FILE_SZ     65536
+#define MAX_FILE_OFFSET 1024
 static char testDataOne[MAX_FILE_SZ];
 static char testDataTwo[MAX_FILE_SZ];
 static char * const iterationFile = "/iterationCount";
@@ -200,7 +201,7 @@ static void _FsTest_Task(void *pxParam)
         }
 
         /* Write to file */
-        fileOffset = (rand() % 4096) * 4096;
+        fileOffset = (rand() % MAX_FILE_OFFSET) * 4096;
         ubifs_zpl_test_debug("FsTest: Free Heap = %d, Min Free = %d", xPortGetFreeHeapSize(), xPortGetMinimumEverFreeHeapSize());
         ubifs_zpl_test_debug("FsTest: Writing random data to file at random offset (len: %d, offset: %d)", fileLen, fileOffset);
         UBI_ZPL_FileWrite(testFile, (void *)testDataOne, fileOffset, fileLen, &actwritten, _FsTest_cb);

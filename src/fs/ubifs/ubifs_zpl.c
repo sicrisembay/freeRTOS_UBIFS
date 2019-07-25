@@ -57,7 +57,7 @@ typedef struct {
 
 #define UBI_Q_LEN                       (10)
 #define UBI_Q_ITEM_SZ                   (sizeof(ubi_zpl_req_t))
-#define OP_THRES                        (512)
+#define OP_THRES                        (256)
 
 #define ubifs_zpl_debug(fmt, args...)    debug_cond(ENABLE_DEBUG_PRINTF, fmt, ##args)
 
