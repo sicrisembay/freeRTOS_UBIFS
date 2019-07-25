@@ -20,6 +20,8 @@
 //*****************************************************************************
 // Public / Internal definitions.
 //*****************************************************************************
+#define EMCRAFT_12MB_MTD_UBIFS_TEST                 (1)
+
 #define NAND_TOSHIBA                                (0)
 #define NAND_WINBOND                                (1)
 #define NAND_PN                                     NAND_WINBOND
@@ -48,13 +50,26 @@
 #define CONFIG_MTD_PARTITIONS
 #define CONFIG_MTD_DEVICE
 #define MTDIDS_DEFAULT                              "nand0=gpmi-nand"
+#if (EMCRAFT_12MB_MTD_UBIFS_TEST == 1)
+#define MTDPARTS_DEFAULT                            "mtdparts=gpmi-nand:" \
+                                                    "512k(bcb),"          \
+                                                    "2m(u-boot1)ro,"      \
+                                                    "2m(u-boot2)ro,"      \
+                                                    "12m(testfs),"        \
+                                                    "-(rootfs)"
+#else
 #define MTDPARTS_DEFAULT                            "mtdparts=gpmi-nand:" \
                                                     "512k(bcb),"          \
                                                     "2m(u-boot1)ro,"      \
                                                     "2m(u-boot2)ro,"      \
                                                     "-(rootfs)"
+#endif /* #if (EMCRAFT_12MB_MTD_UBIFS_TEST == 1) */
 #define PARTITION_DEFAULT                           "nand0,3"
+#if (EMCRAFT_12MB_MTD_UBIFS_TEST == 1)
+#define PARTITION_NAME_DEFAULT                      "testfs"
+#else
 #define PARTITION_NAME_DEFAULT                      "rootfs"
+#endif /* #if (EMCRAFT_12MB_MTD_UBIFS_TEST == 1) */
 #define VOLUME_NAME_DEFAULT                         "ubi0:fs"
 
 #define CONFIG_MTD_UBI_WL_THRESHOLD                 (256)
