@@ -612,18 +612,19 @@ void ubifs_convert_page_budget(struct ubifs_info *c)
  * called when after the inode has been written to the media and marked as
  * clean. It also causes the "no space" flags to be cleared.
  */
-void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
-				      struct ubifs_inode *ui)
-{
-	struct ubifs_budget_req req;
-
-	memset(&req, 0, sizeof(struct ubifs_budget_req));
-	/* The "no space" flags will be cleared because dd_growth is > 0 */
-	req.dd_growth = c->bi.inode_budget + ALIGN(ui->data_len, 8);
-	ubifs_release_budget(c, &req);
-}
-
-/**
+void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
+				      struct ubifs_inode *ui)
+{
+#ifndef __UBOOT__
+	struct ubifs_budget_req req;
+	memset(&req, 0, sizeof(struct ubifs_budget_req));
+	/* The "no space" flags will be cleared because dd_growth is > 0 */
+	req.dd_growth = c->bi.inode_budget + ALIGN(ui->data_len, 8);
+	ubifs_release_budget(c, &req);
+#endif
+}
+
+/**
  * ubifs_reported_space - calculate reported free space.
  * @c: the UBIFS file-system description object
  * @free: amount of free space

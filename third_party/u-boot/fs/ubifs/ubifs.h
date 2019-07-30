@@ -693,12 +693,12 @@ static inline ino_t parent_ino(struct dentry *dentry)
 		__func__, ##__VA_ARGS__)
 #else
 #define ubifs_err(c, fmt, ...)                                      \
-	pr_err("UBIFS error (ubi%d:%d pid %d): %s: " fmt "\n",      \
+	printf("UBIFS error (ubi%d:%d pid %d): %s: " fmt "\n",      \
 	       (c)->vi.ubi_num, (c)->vi.vol_id, 0,                  \
 	       __func__, ##__VA_ARGS__)
 /* UBIFS warning messages */
 #define ubifs_warn(c, fmt, ...)                                     \
-	pr_warn("UBIFS warning (ubi%d:%d pid %d): %s: " fmt "\n",   \
+	printf("UBIFS warning (ubi%d:%d pid %d): %s: " fmt "\n",   \
 		(c)->vi.ubi_num, (c)->vi.vol_id, 0,                 \
 		__func__, ##__VA_ARGS__)
 
