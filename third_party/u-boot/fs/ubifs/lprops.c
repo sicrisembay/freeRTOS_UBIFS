@@ -541,7 +541,7 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 	dbg_lp("LEB %d, free %d, dirty %d, flags %d",
 	       lprops->lnum, free, dirty, flags);
 
-	ubifs_assert(mutex_is_locked(&c->lp_mutex));
+//	ubifs_assert(mutex_is_locked(&c->lp_mutex));    /* Note: mutex_is_locked() is hard-coded to 0 */
 	ubifs_assert(c->lst.empty_lebs >= 0 &&
 		     c->lst.empty_lebs <= c->main_lebs);
 	ubifs_assert(c->freeable_cnt >= 0);
@@ -766,7 +766,7 @@ const struct ubifs_lprops *ubifs_fast_find_free(struct ubifs_info *c)
 	struct ubifs_lprops *lprops;
 	struct ubifs_lpt_heap *heap;
 
-	ubifs_assert(mutex_is_locked(&c->lp_mutex));
+//	ubifs_assert(mutex_is_locked(&c->lp_mutex));    /* Note: mutex_is_locked() is hard-coded to 0 */
 
 	heap = &c->lpt_heap[LPROPS_FREE - 1];
 	if (heap->cnt == 0)
@@ -789,7 +789,7 @@ const struct ubifs_lprops *ubifs_fast_find_empty(struct ubifs_info *c)
 {
 	struct ubifs_lprops *lprops;
 
-	ubifs_assert(mutex_is_locked(&c->lp_mutex));
+//	ubifs_assert(mutex_is_locked(&c->lp_mutex));    /* Note: mutex_is_locked() is hard-coded to 0 */
 
 	if (list_empty(&c->empty_list))
 		return NULL;
@@ -812,7 +812,7 @@ const struct ubifs_lprops *ubifs_fast_find_freeable(struct ubifs_info *c)
 {
 	struct ubifs_lprops *lprops;
 
-	ubifs_assert(mutex_is_locked(&c->lp_mutex));
+//	ubifs_assert(mutex_is_locked(&c->lp_mutex));    /* Note: mutex_is_locked() is hard-coded to 0 */
 
 	if (list_empty(&c->freeable_list))
 		return NULL;
@@ -836,7 +836,7 @@ const struct ubifs_lprops *ubifs_fast_find_frdi_idx(struct ubifs_info *c)
 {
 	struct ubifs_lprops *lprops;
 
-	ubifs_assert(mutex_is_locked(&c->lp_mutex));
+//	ubifs_assert(mutex_is_locked(&c->lp_mutex));    /* Note: mutex_is_locked() is hard-coded to 0 */
 
 	if (list_empty(&c->frdi_idx_list))
 		return NULL;

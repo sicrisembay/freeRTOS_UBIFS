@@ -577,7 +577,7 @@ static void ubifs_dirty_inode(struct inode *inode, int flags)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
-	ubifs_assert(mutex_is_locked(&ui->ui_mutex));
+//	ubifs_assert(mutex_is_locked(&ui->ui_mutex));   /* Note: mutex_is_locked() is hard-coded to 0 */
 	if (!ui->dirty) {
 		ui->dirty = 1;
 		dbg_gen("inode %lu",  inode->i_ino);
