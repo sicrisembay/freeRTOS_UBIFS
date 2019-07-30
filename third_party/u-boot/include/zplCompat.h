@@ -17,7 +17,10 @@ static inline int __ffs(int l) { assert(0); }
 #include "linux/kernel.h"
 #include "stddef.h"
 #include "stdio.h"
+#include "string.h"
 #include "ubiFsConfig.h"
+#include "FreeRTOS.h"
+#include "BSP_uart.h"
 
 #define _DEBUG      (1)
 
@@ -27,7 +30,7 @@ static inline int __ffs(int l) { assert(0); }
 
 #define CONFIG_SYS_CACHELINE_SIZE   32
 #define ARCH_DMA_MINALIGN           CONFIG_SYS_CACHELINE_SIZE
-#define CONFIG_SYS_MALLOC_LEN       (1 * 1024 * 1024)
+#define CONFIG_SYS_MALLOC_LEN       (configTOTAL_HEAP_SIZE)
 #define CONFIG_MTD_UBI_BEB_LIMIT    20
 
 #if !defined(__TEST_APP__)
@@ -219,14 +222,14 @@ static inline int test_and_set_bit(int nr, volatile void * addr) {
 
 #define MAX_LOG_LEN  (1024)
 extern char logData[MAX_LOG_LEN+1];
-#define debug_cond(cond, fmt, args...)          \
-    do {                                   \
-        if (cond) {                          \
-            snprintf(logData, MAX_LOG_LEN, fmt, ##args); \
-            logData[MAX_LOG_LEN] = '\0'; \
-            BSP_UART_Send(0, (uint8_t *)logData, strlen(logData)); \
-            BSP_UART_Send(0, (uint8_t *)"\n\r", 2); \
-        } \
+#define debug_cond(cond, fmt, args...)                              \
+    do {                                                            \
+        if (cond) {                                                 \
+            snprintf(logData, MAX_LOG_LEN, fmt, ##args);            \
+            logData[MAX_LOG_LEN] = '\0';                            \
+            BSP_UART_Send(0, (uint8_t *)logData, strlen(logData));  \
+            BSP_UART_Send(0, (uint8_t *)"\n\r", 2);                 \
+        }                                                           \
     } while (0)
 #endif
 

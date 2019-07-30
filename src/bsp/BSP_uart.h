@@ -10,10 +10,10 @@
 //*****************************************************************************
 // Public / Internal definitions.
 //*****************************************************************************
-#define BSP_UART_0_TX_BUFFER_SIZE             (512)
+#define BSP_UART_0_TX_BUFFER_SIZE             (8192)
 #define BSP_UART_0_RX_BUFFER_SIZE             (512)
 
-#define BSP_UART_1_TX_BUFFER_SIZE             (512)
+#define BSP_UART_1_TX_BUFFER_SIZE             (8192)
 #define BSP_UART_1_RX_BUFFER_SIZE             (512)
 
 /*!

@@ -452,14 +452,14 @@ static int ubifs_finddir(struct super_block *sb, char *dirname,
 	file = kzalloc(sizeof(struct file), 0);
 	dentry = kzalloc(sizeof(struct dentry), 0);
 	if (!file || !dentry) {
-		printf("%s: Error, no memory for malloc!\n", __func__);
+		debug("%s: Error, no memory for malloc!\n", __func__);
 		err = -ENOMEM;
 		goto out_free;
 	}
 
 	dir = ubifs_iget(ubifs_sb, root_inum);
 	if (IS_ERR(dir)) {
-		printf("%s: Error reading inode %ld!\n", __func__, root_inum);
+		debug("%s: Error reading inode %ld!\n", __func__, root_inum);
 		ret = PTR_ERR(dir);
 		goto out_free;
 	}
@@ -666,14 +666,14 @@ int ubifs_ls(const char *filename)
 	file = kzalloc(sizeof(struct file), 0);
 	dentry = kzalloc(sizeof(struct dentry), 0);
 	if (!file || !dentry) {
-		printf("%s: Error, no memory for malloc!\n", __func__);
+		debug("%s: Error, no memory for malloc!\n", __func__);
 		ret = -ENOMEM;
 		goto out_mem;
 	}
 
 	dir = ubifs_iget(ubifs_sb, inum);
 	if (IS_ERR(dir)) {
-		printf("%s: Error reading inode %ld!\n", __func__, inum);
+		debug("%s: Error reading inode %ld!\n", __func__, inum);
 		ret = PTR_ERR(dir);
 		goto out_mem;
 	}
