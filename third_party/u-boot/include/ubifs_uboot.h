@@ -26,7 +26,9 @@ int ubifs_ls(const char *dir_name);
 int ubifs_exists(const char *filename);
 int ubifs_size(const char *filename, loff_t *size);
 int ubifs_read(const char *filename, void *buf, loff_t offset,
-	       loff_t size, loff_t *actread);
+           loff_t size, loff_t *actread);
+int ubifs_write(const char *filename, void *buf, loff_t offset,
+           loff_t size, loff_t *actwritten);
 void ubifs_close(void);
 
 #endif /* __UBIFS_UBOOT_H__ */

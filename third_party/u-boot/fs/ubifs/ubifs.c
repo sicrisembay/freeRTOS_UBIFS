@@ -121,7 +121,7 @@ static inline struct crypto_comp
 	}
 	if (i >= UBIFS_COMPR_TYPES_CNT) {
 		dbg_gen("invalid compression type %s", alg_name);
-		free (ptr);
+		kfree (ptr);
 		return NULL;
 	}
 	return ptr;
@@ -218,7 +218,7 @@ void ubifs_compress(const struct ubifs_info *c, const void *in_buf,
 	/* If the input data is small, do not even try to compress it */
 	if (in_len < UBIFS_MIN_COMPR_LEN)
 		goto no_compr;
-
+#if 0  /* compress is not implemented! */
 	if (compr->comp_mutex)
 		mutex_lock(compr->comp_mutex);
 	err = -EIO;//FIXME crypto_comp_compress(compr->cc, in_buf, in_len, out_buf,
@@ -230,7 +230,9 @@ void ubifs_compress(const struct ubifs_info *c, const void *in_buf,
 			   in_len, compr->name, err);
 		goto no_compr;
 	}
-
+#else
+    goto no_compr;
+#endif
 	/*
 	 * If the data compressed only slightly, it is better to leave it
 	 * uncompressed to improve read speed.
@@ -443,17 +445,25 @@ static int ubifs_finddir(struct super_block *sb, char *dirname,
 	struct qstr nm;
 	union ubifs_key key;
 	struct ubifs_dent_node *dent;
-	struct ubifs_info *c;
-	struct file *file;
-	struct dentry *dentry;
+	struct ubifs_info *c;
+
+	struct file *file;
+
+	struct dentry *dentry;
+
 	struct inode *dir = NULL;
-	int ret = 0;
-
-	file = kzalloc(sizeof(struct file), 0);
-	dentry = kzalloc(sizeof(struct dentry), 0);
+	int ret = 0;
+
+
+
+	file = kzalloc(sizeof(struct file), 0);
+
+	dentry = kzalloc(sizeof(struct dentry), 0);
+
 	if (!file || !dentry) {
 		debug("%s: Error, no memory for malloc!\n", __func__);
-		err = -ENOMEM;
+		err = -ENOMEM;
+
 		goto out_free;
 	}
 
@@ -462,14 +472,22 @@ static int ubifs_finddir(struct super_block *sb, char *dirname,
 		debug("%s: Error reading inode %ld!\n", __func__, root_inum);
 		ret = PTR_ERR(dir);
 		goto out_free;
-	}
-
-	file->f_path.dentry = dentry;
-	file->f_path.dentry->d_parent = dentry;
-	file->f_path.dentry->d_inode = dir;
-	c = sb->s_fs_info;
-
-	dbg_gen("dir ino %lu, f_pos %#llx", dir->i_ino, file->f_pos);
+	}
+
+
+
+	file->f_path.dentry = dentry;
+
+	file->f_path.dentry->d_parent = dentry;
+
+	file->f_path.dentry->d_inode = dir;
+
+	c = sb->s_fs_info;
+
+
+
+	dbg_gen("dir ino %lu, f_pos %#llx", dir->i_ino, file->f_pos);
+
 	/* Find the first entry in TNC and save it */
 	lowest_dent_key(c, &key, dir->i_ino);
 	nm.name = NULL;
@@ -490,13 +508,19 @@ static int ubifs_finddir(struct super_block *sb, char *dirname,
 
 		nm.len = le16_to_cpu(dent->nlen);
 		if ((strncmp(dirname, (char *)dent->name, nm.len) == 0) &&
-		    (strlen(dirname) == nm.len)) {
-			*inum = le64_to_cpu(dent->inum);
-			ret = 1;
+		    (strlen(dirname) == nm.len)) {
+
+			*inum = le64_to_cpu(dent->inum);
+
+			ret = 1;
+
 			goto out;
-		}
-
-		/* Switch to the next entry */
+		}
+
+
+
+		/* Switch to the next entry */
+
 		key_read(c, &dent->key, &key);
 		nm.name = (char *)dent->name;
 		dent = ubifs_tnc_next_ent(c, &key, &nm);
@@ -512,23 +536,33 @@ static int ubifs_finddir(struct super_block *sb, char *dirname,
 	}
 
 out:
-	if (err != -ENOENT)
-		dbg_gen("cannot find next direntry, error %d", err);
-
+	if (err != -ENOENT)
+
+		dbg_gen("cannot find next direntry, error %d", err);
+
+
+
 	if (!IS_ERR(dir))
 		ubifs_iput(dir);
 
-	if (file->private_data)
-		kfree(file->private_data);
+	if (file->private_data)
+
+		kfree(file->private_data);
+
 
 out_free:
-	if (file)
+	if (file)
+
 		kfree(file);
-	if (dentry)
+	if (dentry)
+
 		kfree(dentry);
-
-	return ret;
-}
+
+
+	return ret;
+
+}
+
 static unsigned long ubifs_findfile(struct super_block *sb, char *filename,
 	unsigned long *parent_dir)
 {
@@ -662,15 +696,22 @@ int ubifs_ls(const char *filename)
 		goto out;
 	}
 
-
-	file = kzalloc(sizeof(struct file), 0);
-	dentry = kzalloc(sizeof(struct dentry), 0);
+
+
+	file = kzalloc(sizeof(struct file), 0);
+
+	dentry = kzalloc(sizeof(struct dentry), 0);
+
 	if (!file || !dentry) {
 		debug("%s: Error, no memory for malloc!\n", __func__);
-		ret = -ENOMEM;
-		goto out_mem;
-	}
-
+		ret = -ENOMEM;
+
+		goto out_mem;
+
+	}
+
+
+
 	dir = ubifs_iget(ubifs_sb, inum);
 	if (IS_ERR(dir)) {
 		debug("%s: Error reading inode %ld!\n", __func__, inum);
@@ -678,24 +719,38 @@ int ubifs_ls(const char *filename)
 		goto out_mem;
 	}
 
-	dir->i_sb = ubifs_sb;
-	file->f_path.dentry = dentry;
-	file->f_path.dentry->d_parent = dentry;
-	file->f_path.dentry->d_inode = dir;
-	file->f_pos = 1;
-	file->private_data = NULL;
-	ubifs_printdir(file, dirent);
-
+	dir->i_sb = ubifs_sb;
+
+	file->f_path.dentry = dentry;
+
+	file->f_path.dentry->d_parent = dentry;
+
+	file->f_path.dentry->d_inode = dir;
+
+	file->f_pos = 1;
+
+	file->private_data = NULL;
+
+	ubifs_printdir(file, dirent);
+
+
+
 	ubifs_iput(dir);
 
-out_mem:
-	if (file)
-		free(file);
-	if (dentry)
-		free(dentry);
-
-out:
-	ubi_close_volume(c->ubi);
+out_mem:
+
+	if (file)
+
+		kfree(file);
+	if (dentry)
+
+		kfree(dentry);
+
+
+out:
+
+	ubi_close_volume(c->ubi);
+
 	return ret;
 }
 
@@ -1062,12 +1117,18 @@ void ubifs_set_inode_flags(struct inode *inode)
  * initializes it. Returns new inode in case of success and an error code in
  * case of failure.
  */
-struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
-			      umode_t mode)
-{
-	struct inode *inode;
-	struct ubifs_inode *ui;
-
+struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
+
+			      umode_t mode)
+
+{
+
+	struct inode *inode;
+
+	struct ubifs_inode *ui;
+
+
+
 	inode = c->vfs_sb->s_op->alloc_inode(c->vfs_sb);
 	ui = ubifs_inode(inode);
 	if (!inode)
@@ -1157,13 +1218,19 @@ static struct inode *ubifs_create(struct inode *dir, struct qstr *nm, umode_t mo
 
 	dbg_gen("dent '%s', mode %#hx in dir ino %lu",
 		nm->name, mode, dir->i_ino);
-
-	err = ubifs_budget_space(c, &req);
-	if (err)
+
+
+	err = ubifs_budget_space(c, &req);
+
+	if (err)
+
 		return ERR_PTR(err);
-
-	sz_change = CALC_DENT_SIZE(fname_len(nm));
-
+
+
+	sz_change = CALC_DENT_SIZE(fname_len(nm));
+
+
+
 	inode = ubifs_new_inode(c, dir, mode);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
@@ -1182,30 +1249,48 @@ static struct inode *ubifs_create(struct inode *dir, struct qstr *nm, umode_t mo
 	inode->i_size = 0;
 	err = ubifs_jnl_update(c, dir, nm, inode, 0, 0);
 	if (err)
-		goto out_cancel;
-	mutex_unlock(&dir_ui->ui_mutex);
-
-	err = ubifs_run_commit(c);
-	if (err)
-		goto out_cancel;
-
+		goto out_cancel;
+
+	mutex_unlock(&dir_ui->ui_mutex);
+
+
+
+	err = ubifs_run_commit(c);
+
+	if (err)
+
+		goto out_cancel;
+
+
+
 	ubifs_release_budget(c, &req);
 
-	return inode;
-
-out_cancel:
+	return inode;
+
+
+
+out_cancel:
+
 	dir->__i_nlink--;
 	dir->i_size -= sz_change;
 	dir_ui->ui_size = dir->i_size;
-	mutex_unlock(&dir_ui->ui_mutex);
-out_inode:
-out_fname:
-	ubifs_release_budget(c, &req);
-	ubifs_err(c, "cannot create regular file, error %d", err);
+	mutex_unlock(&dir_ui->ui_mutex);
+
+out_inode:
+
+out_fname:
+
+	ubifs_release_budget(c, &req);
+
+	ubifs_err(c, "cannot create regular file, error %d", err);
+
 	return ERR_PTR(err);
-}
-
-/**
+}
+
+
+
+/**
+
  * release_new_page_budget - release budget of a new page.
  * @c: UBIFS file-system description object
  *
@@ -1222,17 +1307,23 @@ static void release_new_page_budget(struct ubifs_info *c)
 static int do_writepage(struct ubifs_info *c, struct inode *inode, struct page *page, int len)
 {
 	int err = 0, i, blen;
-	unsigned int block;
-	void *addr;
-	union ubifs_key key;
+	unsigned int block;
+
+	void *addr;
+
+	union ubifs_key key;
+
 	struct ubifs_budget_req req = { .recalculate = 1, .new_page = 1 };
 
 	err = ubifs_budget_space(c, &req);
 	if (unlikely(err))
 		return err;
-
-#ifdef UBIFS_DEBUG
-	struct ubifs_inode *ui = ubifs_inode(inode);
+
+
+#ifdef UBIFS_DEBUG
+
+	struct ubifs_inode *ui = ubifs_inode(inode);
+
 	spin_lock(&ui->ui_lock);
 	ubifs_assert(page->index <= ui->synced_i_size >> PAGE_SHIFT);
 	spin_unlock(&ui->ui_lock);
@@ -1275,13 +1366,19 @@ static int do_writepage(struct ubifs_info *c, struct inode *inode, struct page *
  * directory is empty, %-ENOTEMPTY if it is not, and other negative error codes
  * in case of of errors.
  */
-static int ubifs_check_dir_empty(struct inode *dir)
-{
-	struct ubifs_info *c = dir->i_sb->s_fs_info;
+static int ubifs_check_dir_empty(struct inode *dir)
+
+{
+
+	struct ubifs_info *c = dir->i_sb->s_fs_info;
+
 	struct qstr nm = { 0 };
-	struct ubifs_dent_node *dent;
-	union ubifs_key key;
-	int err;
+	struct ubifs_dent_node *dent;
+
+	union ubifs_key key;
+
+	int err;
+
 	lowest_dent_key(c, &key, dir->i_ino);
 	dent = ubifs_tnc_next_ent(c, &key, &nm);
 	if (IS_ERR(dent)) {
@@ -1322,38 +1419,58 @@ int ubifs_rmdir(const char *filename)
 	/*
 	 * Budget request settings: deletion direntry, deletion inode and
 	 * changing the parent inode. If budgeting fails, go ahead anyway
-	 * because we have extra space reserved for deletions.
-	 */
-
-	inum = ubifs_findfile(ubifs_sb, (char *)filename, &idir);
-
+	 * because we have extra space reserved for deletions.
+
+	 */
+
+
+
+	inum = ubifs_findfile(ubifs_sb, (char *)filename, &idir);
+
+
+
 	if (!inum) {
 		debug("%s: No inode for '%s'!\n", __func__, filename);
 		err = -ENOENT;
 		goto out;
 	}
 
-	dir = ubifs_iget(ubifs_sb, idir);
-	if (IS_ERR(dir)) {
-		debug("%s: No parent dir inode for '%s'!\n", __func__, filename);
+	dir = ubifs_iget(ubifs_sb, idir);
+
+	if (IS_ERR(dir)) {
+
+		debug("%s: No parent dir inode for '%s'!\n", __func__, filename);
+
 		err = PTR_ERR(dir);
 		goto out;
-	}
-	dir_ui = ubifs_inode(dir);
-
-	inode = ubifs_iget(ubifs_sb, inum);
-	if (IS_ERR(inode)) {
-		debug("%s: Error reading inode %ld!\n", __func__, inum);
+	}
+
+	dir_ui = ubifs_inode(dir);
+
+
+
+	inode = ubifs_iget(ubifs_sb, inum);
+
+	if (IS_ERR(inode)) {
+
+		debug("%s: Error reading inode %ld!\n", __func__, inum);
+
 		err = PTR_ERR(inode);
-		goto out_dir;
-	}
-	
+		goto out_dir;
+
+	}
+
+	
+
 	dbg_gen("directory '%s', ino %lu in dir ino %lu", filename,
 		inode->i_ino, dir->i_ino);
 
-	err = ubifs_check_dir_empty(inode);
-	if (err)
-		goto out_inode;
+	err = ubifs_check_dir_empty(inode);
+
+	if (err)
+
+		goto out_inode;
+
 	sz_change = CALC_DENT_SIZE(fname_len(&nm));
 
 	err = ubifs_budget_space(c, &req);
@@ -1370,15 +1487,21 @@ int ubifs_rmdir(const char *filename)
 	dir_ui->ui_size = dir->i_size;
 	dir->i_mtime = dir->i_ctime = inode->i_ctime;
 	dir->__i_nlink--;
-	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0);
-	if (err)
-		goto out_cancel;
+	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0);
+
+	if (err)
+
+		goto out_cancel;
+
 	err = ubifs_jnl_write_inode(c, inode);
 	if (err)
 		goto out_cancel;
-
-	if (budgeted)
-		ubifs_release_budget(c, &req);
+
+
+	if (budgeted)
+
+		ubifs_release_budget(c, &req);
+
 	else {
 		/* We've deleted something - clean the "no space" flags */
 		c->bi.nospace = c->bi.nospace_rp = 0;
@@ -1430,13 +1553,19 @@ int ubifs_mkdir(const char *filename)
 	c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READWRITE);
 	inum = ubifs_findfile(ubifs_sb, (char *)filename, &parent_dir);
 	if (!inum) {
-		iparent_dir = ubifs_iget(ubifs_sb, parent_dir);
-		if (IS_ERR(iparent_dir)) {
-			debug("%s: No parent dir inode for '%s'!\n", __func__, filename);
+		iparent_dir = ubifs_iget(ubifs_sb, parent_dir);
+
+		if (IS_ERR(iparent_dir)) {
+
+			debug("%s: No parent dir inode for '%s'!\n", __func__, filename);
+
 			err = PTR_ERR(iparent_dir);
-			goto out;
-		}
-
+			goto out;
+
+		}
+
+
+
 		inode = ubifs_create(iparent_dir, &fn, S_IFDIR, 0);
 		if (IS_ERR(inode)) {
 			debug("%s: Can't create inode %d!\n", __func__, (int)inode);
@@ -1603,20 +1732,28 @@ int ubifs_unlink(const char *filename)
 	 * Budget request settings: deletion direntry, deletion inode (+1 for
 	 * @dirtied_ino), changing the parent directory inode. If budgeting
 	 * fails, go ahead anyway because we have extra space reserved for
-	 * deletions.
-	 */
-
-	inum = ubifs_findfile(ubifs_sb, (char *)filename, &idir);
-
+	 * deletions.
+
+	 */
+
+
+
+	inum = ubifs_findfile(ubifs_sb, (char *)filename, &idir);
+
+
+
 	if (!inum) {
 		debug("%s: No inode for '%s'!\n", __func__, filename);
 		err = -ENOENT;
 		goto out;
 	}
 
-	dir = ubifs_iget(ubifs_sb, idir);
-	if (IS_ERR(dir)) {
-		debug("%s: No parent dir inode for '%s'!\n", __func__, filename);
+	dir = ubifs_iget(ubifs_sb, idir);
+
+	if (IS_ERR(dir)) {
+
+		debug("%s: No parent dir inode for '%s'!\n", __func__, filename);
+
 		err = PTR_ERR(dir);
 		goto out;
 	}

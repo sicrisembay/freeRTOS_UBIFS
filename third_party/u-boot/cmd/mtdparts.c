@@ -100,6 +100,7 @@ DECLARE_GLOBAL_DATA_PTR;
 #include "linux/mtd/nand.h"
 #include "nand.h"
 #include "assert.h"
+#include "linux/compat.h"
 #endif /* __ZPL_BUILD__ */
 
 /* special size referring to all the remaining space in a partition */
@@ -686,7 +687,7 @@ static int part_parse(const char *const partdef, const char **ret, struct part_i
 	}
 
 	/*  allocate memory */
-	part = (struct part_info *)malloc(sizeof(struct part_info) + name_len);
+	part = (struct part_info *)kmalloc(sizeof(struct part_info) + name_len, GFP_KERNEL);
 	if (!part) {
 		debug("out of memory\n");
 		return 1;
@@ -956,7 +957,7 @@ static int device_parse(const char *const mtd_dev, const char **ret, struct mtd_
 	}
 
 	/* allocate memory for mtd_device structure */
-	if ((dev = (struct mtd_device *)malloc(sizeof(struct mtd_device))) == NULL) {
+	if ((dev = (struct mtd_device *)kmalloc(sizeof(struct mtd_device), GFP_KERNEL)) == NULL) {
 		debug("out of memory\n");
 		return 1;
 	}
@@ -1702,7 +1703,7 @@ static int parse_mtdids(const char *const ids)
 		}
 
 		/* allocate mtdids structure */
-		if (!(id = (struct mtdids *)malloc(sizeof(struct mtdids) + mtd_id_len))) {
+		if (!(id = (struct mtdids *)kmalloc(sizeof(struct mtdids) + mtd_id_len, GFP_KERNEL))) {
 			debug("out of memory\n");
 			break;
 		}

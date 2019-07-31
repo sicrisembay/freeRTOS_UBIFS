@@ -17,7 +17,7 @@
 #include <malloc.h>
 #else
 #include "zplCompat.h"
-#include "malloc.h"
+#include "common.h"
 #endif /* __ZPL_BUILD__ */
 /*
  * The ALLOC_CACHE_ALIGN_BUFFER macro is used to allocate a buffer on the

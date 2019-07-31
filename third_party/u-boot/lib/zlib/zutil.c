@@ -47,9 +47,9 @@ void z_error (m)
 #include <malloc.h>
 #else
 #ifndef STDC
-extern voidp    malloc OF((uInt size));
-extern voidp    calloc OF((uInt items, uInt size));
-extern void     free   OF((voidpf ptr));
+extern voidp    kmalloc OF((uInt size, GFP_KERNEL));
+extern voidp    kcalloc OF((uInt items, uInt size, GFP_KERNEL));
+extern void     kfree   OF((voidpf ptr));
 #endif
 #endif
 
@@ -57,13 +57,13 @@ voidpf zcalloc(voidpf opaque, unsigned items, unsigned size)
 {
 	if (opaque)
 		items += size - size; /* make compiler happy */
-	return sizeof(uInt) > 2 ? (voidpf)malloc(items * size) :
-		(voidpf)calloc(items, size);
+	return sizeof(uInt) > 2 ? (voidpf)kmalloc(items * size, GFP_KERNEL) :
+		(voidpf)kcalloc(items, size, GFP_KERNEL);
 }
 
 void  zcfree(voidpf opaque, voidpf ptr, unsigned nb)
 {
-	free(ptr);
+	kfree(ptr);
 	if (opaque)
 		return; /* make compiler happy */
 }
