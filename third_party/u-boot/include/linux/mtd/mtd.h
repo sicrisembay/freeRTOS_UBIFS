@@ -496,16 +496,16 @@ static inline void mtd_erase_callback(struct erase_info *instr)
 			printk(KERN_INFO args);		\
 	} while(0)
 #else
-#define MTDDEBUG(n, args...)
+#define MTDDEBUG(n, args...)  debug_cond(n > MTD_DEBUG_LEVEL0, ##args)
 
 #endif /* __ZPL_BUILD__ */
 #endif /* CONFIG_MTD_DEBUG */
-#define pr_info(args...)	MTDDEBUG(MTD_DEBUG_LEVEL0, args)
-#define pr_warn(args...)	MTDDEBUG(MTD_DEBUG_LEVEL0, args)
-#define pr_err(args...)		MTDDEBUG(MTD_DEBUG_LEVEL0, args)
-#define pr_crit(args...)
-#define pr_cont(args...)	MTDDEBUG(MTD_DEBUG_LEVEL0, args)
-#define pr_notice(args...)	MTDDEBUG(MTD_DEBUG_LEVEL0, args)
+#define pr_info(args...)	MTDDEBUG(MTD_DEBUG_LEVEL1, args)
+#define pr_warn(args...)	MTDDEBUG(MTD_DEBUG_LEVEL1, args)
+#define pr_err(args...)		MTDDEBUG(MTD_DEBUG_LEVEL1, args)
+#define pr_crit(args...)    MTDDEBUG(MTD_DEBUG_LEVEL1, args)
+#define pr_cont(args...)	MTDDEBUG(MTD_DEBUG_LEVEL1, args)
+#define pr_notice(args...)	MTDDEBUG(MTD_DEBUG_LEVEL1, args)
 #endif
  
 static inline int mtd_is_bitflip(int err) {

@@ -339,20 +339,18 @@ int ubifs_recover_master_node(struct ubifs_info *c)
 		 *    node when it is re-mounter R/W later.
 		 *
 		 *    Thus, to force the recovery by marking the master node as
-		 *    dirty.
-		 */
-		c->mst_node->flags |= cpu_to_le32(UBIFS_MST_DIRTY);
-#ifndef __UBOOT__
-	} else {
-		/* Write the recovered master node */
-		c->max_sqnum = le64_to_cpu(mst->ch.sqnum) - 1;
-		err = write_rcvrd_mst_node(c, c->mst_node);
-		if (err)
-			goto out_free;
-#endif
-	}
-
-	vfree(buf2);
+		 *    dirty.
+		 */
+		c->mst_node->flags |= cpu_to_le32(UBIFS_MST_DIRTY);
+	} else {
+		/* Write the recovered master node */
+		c->max_sqnum = le64_to_cpu(mst->ch.sqnum) - 1;
+		err = write_rcvrd_mst_node(c, c->mst_node);
+		if (err)
+			goto out_free;
+	}
+
+	vfree(buf2);
 	vfree(buf1);
 
 	return 0;
@@ -523,14 +521,12 @@ static int fix_unclean_leb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 		ucleb = kzalloc(sizeof(struct ubifs_unclean_leb), GFP_NOFS);
 		if (!ucleb)
 			return -ENOMEM;
-		ucleb->lnum = lnum;
-		ucleb->endpt = endpt;
-		list_add_tail(&ucleb->list, &c->unclean_leb_list);
-#ifndef __UBOOT__
-	} else {
-		/* Write the fixed LEB back to flash */
-		int err;
-
+		ucleb->lnum = lnum;
+		ucleb->endpt = endpt;
+		list_add_tail(&ucleb->list, &c->unclean_leb_list);
+	} else {
+		/* Write the fixed LEB back to flash */
+		int err;
 		dbg_rcvry("fixing LEB %d start %d endpt %d",
 			  lnum, start, sleb->endpt);
 		if (endpt == 0) {
@@ -557,14 +553,12 @@ static int fix_unclean_leb(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 				}
 			}
 			err = ubifs_leb_change(c, lnum, sleb->buf, len);
-			if (err)
-				return err;
-		}
-#endif
-	}
-	return 0;
-}
-
+			if (err)
+				return err;
+		}
+	}
+	return 0;
+}
 /**
  * drop_last_group - drop the last group of nodes.
  * @sleb: scanned LEB information
@@ -1101,13 +1095,12 @@ int ubifs_clean_lebs(struct ubifs_info *c, void *sbuf)
 		list_del(&ucleb->list);
 		kfree(ucleb);
 	}
-	return 0;
-}
-
-#ifndef __UBOOT__
-/**
- * grab_empty_leb - grab an empty LEB to use as GC LEB and run commit.
- * @c: UBIFS file-system description object
+	return 0;
+}
+
+/**
+ * grab_empty_leb - grab an empty LEB to use as GC LEB and run commit.
+ * @c: UBIFS file-system description object
  *
  * This is a helper function for 'ubifs_rcvry_gc_commit()' which grabs an empty
  * LEB to be used as GC LEB (@c->gc_lnum), and then runs the commit. Returns
@@ -1228,18 +1221,12 @@ int ubifs_rcvry_gc_commit(struct ubifs_info *c)
 	if (err)
 		return err;
 
-	dbg_rcvry("allocated LEB %d for GC", lp.lnum);
-	return 0;
-}
-#else
-int ubifs_rcvry_gc_commit(struct ubifs_info *c)
-{
-	return 0;
-}
-#endif
-
-/**
- * struct size_entry - inode size information for recovery.
+	dbg_rcvry("allocated LEB %d for GC", lp.lnum);
+	return 0;
+}
+
+/**
+ * struct size_entry - inode size information for recovery.
  * @rb: link in the RB-tree of sizes
  * @inum: inode number
  * @i_size: size on inode
@@ -1413,13 +1400,12 @@ int ubifs_recover_size_accum(struct ubifs_info *c, union ubifs_key *key,
 			e->d_size = new_size;
 		break;
 	}
-	return 0;
-}
-
-#ifndef __UBOOT__
-/**
- * fix_size_in_place - fix inode size in place on flash.
- * @c: UBIFS file-system description object
+	return 0;
+}
+
+/**
+ * fix_size_in_place - fix inode size in place on flash.
+ * @c: UBIFS file-system description object
  * @e: inode size information for recovery
  */
 static int fix_size_in_place(struct ubifs_info *c, struct size_entry *e)
@@ -1472,7 +1458,6 @@ out:
 		   (unsigned long)e->inum, e->i_size, e->d_size, err);
 	return err;
 }
-#endif
 
 /**
  * ubifs_recover_size - recover inode size.
@@ -1536,21 +1521,19 @@ int ubifs_recover_size(struct ubifs_info *c)
 					ui->synced_i_size = e->d_size;
 					e->inode = inode;
 					this = rb_next(this);
-					continue;
-				}
-				iput(inode);
-#ifndef __UBOOT__
-			} else {
-				/* Fix the size in place */
-				err = fix_size_in_place(c, e);
+					continue;
+				}
+				iput(inode);
+			} else {
+				/* Fix the size in place */
+				err = fix_size_in_place(c, e);
 				if (err)
-					return err;
-				if (e->inode)
-					iput(e->inode);
-#endif
-			}
-		}
-
+					return err;
+				if (e->inode)
+					iput(e->inode);
+			}
+		}
+
 		this = rb_next(this);
 		rb_erase(&e->rb, &c->size_tree);
 		kfree(e);

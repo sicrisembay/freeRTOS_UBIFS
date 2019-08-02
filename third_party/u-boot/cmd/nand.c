@@ -104,9 +104,9 @@ static int nand_dump(struct mtd_info *mtd, ulong off, int only_oob,
 	}
 
 free_all:
-	free(oobbuf);
+	kfree(oobbuf);
 free_dat:
-	free(datbuf);
+	kfree(datbuf);
 
 	return ret;
 }

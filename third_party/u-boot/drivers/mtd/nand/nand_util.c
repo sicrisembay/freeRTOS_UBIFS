@@ -497,7 +497,7 @@ int nand_verify_page_oob(struct mtd_info *mtd, struct mtd_oob_ops *ops,
 	if (!rval)
 		rval = memcmp(ops->oobbuf, vops.oobbuf, vops.ooblen);
 
-	free(vops.datbuf);
+	kfree(vops.datbuf);
 
 	return rval ? -EIO : 0;
 }
@@ -538,7 +538,7 @@ int nand_verify(struct mtd_info *mtd, loff_t ofs, size_t len, u_char *buf)
 			break;
 	}
 
-	free(verbuf);
+	kfree(verbuf);
 
 	return rval ? -EIO : 0;
 }
@@ -898,7 +898,7 @@ int nand_torture(struct mtd_info *mtd, loff_t offset)
 	ret = 0;
 
 out:
-	free(buf);
+	kfree(buf);
 	return ret;
 }
 

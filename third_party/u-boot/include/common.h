@@ -18,6 +18,7 @@ typedef volatile unsigned char	vu_char;
 /* Allow sharing constants with type modifiers between C and assembly. */
 #define _AC(X, Y)       (X##Y)
 
+#ifndef __ZPL_BUILD__
 #include <config.h>
 #include <errno.h>
 #include <time.h>
@@ -34,6 +35,9 @@ typedef volatile unsigned char	vu_char;
 #include <part.h>
 #include <flash.h>
 #include <image.h>
+#else
+#include "zplCompat.h"
+#endif /* #ifndef __ZPL_BUILD__ */
 
 /* Bring in printf format macros if inttypes.h is included */
 #define __STDC_FORMAT_MACROS
@@ -42,11 +46,13 @@ typedef volatile unsigned char	vu_char;
 #define CONFIG_SYS_SUPPORT_64BIT_DATA
 #endif
 
+#ifndef __ZPL_BUILD__ /* defined in zplCompat.h */
 #ifdef DEBUG
 #define _DEBUG	1
 #else
 #define _DEBUG	0
 #endif
+#endif /* #ifndef __ZPL_BUILD__ */
 
 #ifdef CONFIG_SPL_BUILD
 #define _SPL_BUILD	1
@@ -64,6 +70,7 @@ typedef volatile unsigned char	vu_char;
  * computed by a preprocessor in the best case, allowing for the best
  * optimization.
  */
+#ifndef __ZPL_BUILD__  /* Defined in zplCompat.h */
 #define debug_cond(cond, fmt, args...)			\
 	do {						\
 		if (cond)				\
@@ -77,7 +84,7 @@ typedef volatile unsigned char	vu_char;
 /* Show a message if not in SPL */
 #define warn_non_spl(fmt, args...)			\
 	debug_cond(!_SPL_BUILD, fmt, ##args)
-
+#endif /* #ifndef __ZPL_BUILD__  */
 /*
  * An assertion is run-time check done in debug mode only. If DEBUG is not
  * defined then it is skipped. If DEBUG is defined and the assertion fails,
@@ -94,13 +101,13 @@ void __assert_fail(const char *assertion, const char *file, unsigned line,
 		__assert_fail(#x, __FILE__, __LINE__, __func__); })
 
 #define error(fmt, args...) do {					\
-		printf("ERROR: " pr_fmt(fmt) "\nat %s:%d/%s()\n",	\
+		debug("ERROR: " pr_fmt(fmt) "\nat %s:%d/%s()\n",	\
 			##args, __FILE__, __LINE__, __func__);		\
 } while (0)
 
 #ifndef BUG
 #define BUG() do { \
-	printf("BUG: failure at %s:%d/%s()!\n", __FILE__, __LINE__, __FUNCTION__); \
+	debug("BUG: failure at %s:%d/%s()!\n", __FILE__, __LINE__, __FUNCTION__); \
 	panic("BUG!"); \
 } while (0)
 #define BUG_ON(condition) do { if (unlikely((condition)!=0)) BUG(); } while(0)
@@ -108,8 +115,10 @@ void __assert_fail(const char *assertion, const char *file, unsigned line,
 
 typedef void (interrupt_handler_t)(void *);
 
+#ifndef __ZPL_BUILD__
 #include <asm/u-boot.h> /* boot information for Linux kernel */
 #include <asm/global_data.h>	/* global data used for startup functions */
+#endif /* #ifndef __ZPL_BUILD__ */
 
 #if defined(CONFIG_ENV_IS_EMBEDDED)
 #define TOTAL_MALLOC_LEN	CONFIG_SYS_MALLOC_LEN
@@ -148,6 +157,7 @@ void	hang		(void) __attribute__ ((noreturn));
 int	timer_init(void);
 int	cpu_init(void);
 
+#ifndef __ZPL_BUILD__
 #include <display_options.h>
 
 /* common/main.c */
@@ -304,6 +314,7 @@ int do_fat_fsload(cmd_tbl_t *, int, int, char * const []);
 
 /* common/cmd_ext2.c */
 int do_ext2load(cmd_tbl_t *, int, int, char * const []);
+#endif /* #ifndef __ZPL_BUILD__*/
 
 /* common/cmd_nvedit.c */
 int	env_init     (void);
@@ -414,6 +425,7 @@ extern ssize_t spi_read	 (uchar *, int, uchar *, int);
 extern ssize_t spi_write (uchar *, int, uchar *, int);
 #endif
 
+#ifndef __ZPL_BUILD__
 /* $(BOARD)/$(BOARD).c */
 int board_early_init_f (void);
 int board_fix_fdt (void *rw_fdt_blob); /* manipulate the U-Boot fdt before its relocation */
@@ -612,12 +624,14 @@ int gzwrite(unsigned char *src, int len,
 
 /* lib/lz4_wrapper.c */
 int ulz4fn(const void *src, size_t srcn, void *dst, size_t *dstn);
+#endif /* #ifndef __ZPL_BUILD__ */
 
 /* lib/qsort.c */
 void qsort(void *base, size_t nmemb, size_t size,
 	   int(*compar)(const void *, const void *));
 int strcmp_compar(const void *, const void *);
 
+#ifndef __ZPL_BUILD__
 /* lib/uuid.c */
 #include <uuid.h>
 
@@ -716,7 +730,7 @@ int cpu_reset(int nr);
 int cpu_disable(int nr);
 int cpu_release(int nr, int argc, char * const argv[]);
 #endif
-
+#endif /* #ifndef __ZPL_BUILD__ */
 #else	/* __ASSEMBLY__ */
 
 /* Drop a C type modifier (like in 3UL) for constants used in assembly. */
@@ -724,6 +738,7 @@ int cpu_release(int nr, int argc, char * const argv[]);
 
 #endif	/* __ASSEMBLY__ */
 
+#ifndef __ZPL_BUILD__
 /* Put only stuff here that the assembler can digest */
 
 /* Declare an unsigned long constant digestable both by C and an assembler. */
@@ -740,9 +755,11 @@ int cpu_release(int nr, int argc, char * const argv[]);
 #error CONFIG_INIT_CRITICAL is deprecated!
 #error Read section CONFIG_SKIP_LOWLEVEL_INIT in README.
 #endif
+#endif /* #ifndef __ZPL_BUILD__ */
 
 #define ROUND(a,b)		(((a) + (b) - 1) & ~((b) - 1))
 
+#ifndef __ZPL_BUILD__
 /*
  * check_member() - Check the offset of a structure member
  *
@@ -765,5 +782,7 @@ int cpu_release(int nr, int argc, char * const argv[]);
 #ifdef DO_DEPS_ONLY
 # include <environment.h>
 #endif
+
+#endif /* #ifndef __ZPL_BUILD__ */
 
 #endif	/* __COMMON_H_ */

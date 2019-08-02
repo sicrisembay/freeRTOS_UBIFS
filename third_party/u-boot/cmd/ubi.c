@@ -33,6 +33,7 @@
 #include "linux/mtd/partitions.h"
 #include "ubi_uboot.h"
 #include "jffs2/load_kernel.h"
+#include "memalign.h"
 
 #undef ubi_msg
 #define ubi_msg(fmt, ...) { \
@@ -386,7 +387,11 @@ int ubi_volume_read(char *volume, char *buf, size_t size)
 	len = size > tbuf_size ? tbuf_size : size;
 
 	tmp = offp;
+#ifndef __ZPL_BUILD__
 	off = do_div(tmp, vol->usable_leb_size);
+#else
+	off = tmp % vol->usable_leb_size;
+#endif /* #ifndef __ZPL_BUILD__ */
 	lnum = tmp;
 	do {
 		if (off + len >= vol->usable_leb_size)
@@ -413,7 +418,7 @@ int ubi_volume_read(char *volume, char *buf, size_t size)
 		len = size > tbuf_size ? tbuf_size : size;
 	} while (size);
 
-	free(tbuf);
+	kfree(tbuf);
 	return err;
 }
 

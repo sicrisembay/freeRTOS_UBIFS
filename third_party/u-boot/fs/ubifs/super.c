@@ -577,7 +577,7 @@ static void ubifs_dirty_inode(struct inode *inode, int flags)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
-	ubifs_assert(mutex_is_locked(&ui->ui_mutex));
+//	ubifs_assert(mutex_is_locked(&ui->ui_mutex));   /* Note: mutex_is_locked() is hard-coded to 0 */
 	if (!ui->dirty) {
 		ui->dirty = 1;
 		dbg_gen("inode %lu",  inode->i_ino);
@@ -1695,12 +1695,14 @@ out_free:
 	vfree(c->sbuf);
 	kfree(c->bottom_up_buf);
 	ubifs_debugging_exit(c);
-	return err;
-}
+	return err;
+}
+
+static void ubifs_put_super(struct super_block *sb);
 
-/**
- * ubifs_umount - un-mount UBIFS file-system.
- * @c: UBIFS file-system description object
+/**
+ * ubifs_umount - un-mount UBIFS file-system.
+ * @c: UBIFS file-system description object
  *
  * Note, this function is called to free allocated resourced when un-mounting,
  * as well as free resources when an error occurred while we were half way
@@ -1713,12 +1715,16 @@ static void ubifs_umount(struct ubifs_info *c)
 void ubifs_umount(struct ubifs_info *c)
 #endif
 {
-	dbg_gen("un-mounting UBI device %d, volume %d", c->vi.ubi_num,
-		c->vi.vol_id);
+	dbg_gen("un-mounting UBI device %d, volume %d", c->vi.ubi_num,
+		c->vi.vol_id);
+
+#ifdef __UBOOT__
+	ubifs_put_super(ubifs_sb);
+#endif
 
-	dbg_debugfs_exit_fs(c);
-	spin_lock(&ubifs_infos_lock);
-	list_del(&c->infos_list);
+	dbg_debugfs_exit_fs(c);
+	spin_lock(&ubifs_infos_lock);
+	list_del(&c->infos_list);
 	spin_unlock(&ubifs_infos_lock);
 
 #ifndef __UBOOT__
@@ -1964,20 +1970,24 @@ static void ubifs_remount_ro(struct ubifs_info *c)
 	c->ro_mount = 1;
 	err = dbg_check_space_info(c);
 	if (err)
-		ubifs_ro_mode(c, err);
-	mutex_unlock(&c->umount_mutex);
-}
-
-static void ubifs_put_super(struct super_block *sb)
-{
+		ubifs_ro_mode(c, err);
+	mutex_unlock(&c->umount_mutex);
+}
+#endif
+
+static void ubifs_put_super(struct super_block *sb)
+{
 	int i;
 	struct ubifs_info *c = sb->s_fs_info;
 
-	ubifs_msg(c, "un-mount UBI device %d", c->vi.ubi_num);
+
+	ubifs_msg(c, "un-mount UBI device %d", c->vi.ubi_num);
+
+        c->ubi = ubi_open_volume(c->vi.ubi_num, c->vi.vol_id, UBI_READWRITE);
 
-	/*
-	 * The following asserts are only valid if there has not been a failure
-	 * of the media. For example, there will be dirty inodes if we failed
+	/*
+	 * The following asserts are only valid if there has not been a failure
+	 * of the media. For example, there will be dirty inodes if we failed
 	 * to write them back because of I/O errors.
 	 */
 	if (!c->ro_error) {
@@ -2037,20 +2047,19 @@ static void ubifs_put_super(struct super_block *sb)
 				/* Make sure write-buffer timers are canceled */
 				hrtimer_cancel(&c->jheads[i].wbuf.timer);
 #endif
-		}
-	}
-
+		}
+	}
+
+#ifndef __UBOOT__
 	ubifs_umount(c);
-#ifndef __UBOOT__
-	bdi_destroy(&c->bdi);
-#endif
-	ubi_close_volume(c->ubi);
-	mutex_unlock(&c->umount_mutex);
-}
-#endif
-
-#ifndef __UBOOT__
-static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
+	bdi_destroy(&c->bdi);
+#endif
+	ubi_close_volume(c->ubi);
+	mutex_unlock(&c->umount_mutex);
+}
+
+#ifndef __UBOOT__
+static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 {
 	int err;
 	struct ubifs_info *c = sb->s_fs_info;

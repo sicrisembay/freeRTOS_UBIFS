@@ -2,7 +2,6 @@
 #include <common.h>
 #include <linux/compat.h>
 #else
-#include "malloc.h"
 #include "string.h"
 #include "zplCompat.h"
 #include "linux/compat.h"

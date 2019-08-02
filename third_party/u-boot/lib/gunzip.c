@@ -37,14 +37,14 @@ void *gzalloc(void *x, unsigned items, unsigned size)
 	size *= items;
 	size = (size + ZALLOC_ALIGNMENT - 1) & ~(ZALLOC_ALIGNMENT - 1);
 
-	p = malloc (size);
+	p = kmalloc (size, GFP_KERNEL);
 
 	return (p);
 }
 
 void gzfree(void *x, void *addr, unsigned nb)
 {
-	free (addr);
+	kfree (addr);
 }
 
 int gunzip(void *dst, int dstlen, unsigned char *src, unsigned long *lenp)
@@ -259,7 +259,7 @@ int gzwrite(unsigned char *src, int len,
 out:
 	gzwrite_progress_finish(r, totalfilled, szexpected,
 				expected_crc, crc);
-	free(writebuf);
+	kfree(writebuf);
 	inflateEnd(&s);
 
 	return r;

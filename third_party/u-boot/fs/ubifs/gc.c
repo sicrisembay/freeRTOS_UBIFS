@@ -649,7 +649,7 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 	struct ubifs_lprops lp;
 	struct ubifs_wbuf *wbuf = &c->jheads[GCHD].wbuf;
 
-	ubifs_assert_cmt_locked(c);
+//	ubifs_assert_cmt_locked(c);     /* Note: down_write_trylock() is hard-coded to 1 (thus, always assert) */
 	ubifs_assert(!c->ro_media && !c->ro_mount);
 
 	if (ubifs_gc_should_commit(c))

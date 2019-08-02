@@ -279,7 +279,7 @@ void ubifs_dump_inode(struct ubifs_info *c, const struct inode *inode)
 		return;
 
 	pr_err("List of directory entries:\n");
-	ubifs_assert(!mutex_is_locked(&c->tnc_mutex));
+//	ubifs_assert(!mutex_is_locked(&c->tnc_mutex));  /* Note: mutex_is_locked() is hard-coded to 0 */
 
 	lowest_dent_key(c, &key, inode->i_ino);
 	while (1) {
@@ -1524,7 +1524,7 @@ int dbg_check_tnc(struct ubifs_info *c, int extra)
 	if (!dbg_is_chk_index(c))
 		return 0;
 
-	ubifs_assert(mutex_is_locked(&c->tnc_mutex));
+//	ubifs_assert(mutex_is_locked(&c->tnc_mutex));   /* Note: mutex_is_locked() is hard-coded to 0 */
 	if (!c->zroot.znode)
 		return 0;
 
