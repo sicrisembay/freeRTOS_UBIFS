@@ -1791,6 +1791,9 @@ int ubifs_unlink(const char *filename)
 	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0);
 	if (err)
 		goto out_cancel;
+	err = ubifs_jnl_write_inode(c, inode);
+	if (err)
+		goto out_cancel;
 
 	if (budgeted)
 		ubifs_release_budget(c, &req);
