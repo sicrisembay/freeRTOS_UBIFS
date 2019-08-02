@@ -26,7 +26,7 @@ extern struct p_current *current;
 	printf(fmt, ##args)
 #define dev_warn(dev, fmt, args...)		\
 	printf(fmt, ##args)
-#define printk	printf
+#define printk	debug
 #define printk_once	printf
 
 #define KERN_EMERG
